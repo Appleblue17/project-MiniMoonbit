@@ -861,6 +861,34 @@ fn fn_body(tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token])?{
         => stmt } )
   .parse(tokens)
 }
+test "fn_body: ex_frac" {
+  let tokens = ([
+      Token::LCURLYBRACKET,
+      
+      Token::IF,
+      Token::IDENTIFIER("n"),
+      Token::EQ,
+      Token::NUMBER("1"),
+      Token::LCURLYBRACKET,
+      Token::NUMBER("1"),
+      Token::RCURLYBRACKET,
+      Token::ELSE,
+      Token::LCURLYBRACKET,
+      Token::IDENTIFIER("frac"),
+      Token::LPAREN,
+      Token::IDENTIFIER("n"),
+      Token::SUB,
+      Token::NUMBER("1"),
+      Token::RPAREN,
+      Token::MUL,
+      Token::IDENTIFIER("n"),
+      Token::RCURLYBRACKET,
+      Token::RCURLYBRACKET,
+  ])[:]
+  inspect!(fn_body(tokens), content=
+    #|Some((If(Eq(Var("n"), Int(1)), Int(1), Prim(App(Var("frac"), [Prim(Var("n"), Int(1), Sub, kind=None)]), Var("n"), Mul, kind=None)), []))
+  )
+}
 test "fn_body: valid function body with a single statement" {
   let tokens = ([
     Token::LCURLYBRACKET,
@@ -928,8 +956,9 @@ fn nontop_fn_decl(tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token])?{
     .optional_type()
   )
   .and(fn_body)
+  .and(semicolon)
   .and(stmt)
-  .map( fn { (((((((_, IDENTIFIER(id)), _), param_list), _), typ), body), rest)
+  .map( fn { ((((((((_, IDENTIFIER(id)), _), param_list), _), typ), body), _), rest)
         => {
           let type_list = []
           let length = param_list.length()
@@ -943,6 +972,42 @@ fn nontop_fn_decl(tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token])?{
       } )
   .parse(tokens)
 }
+test "nontop_fn_decl: ex_frac" {
+  let tokens = ([
+    Token::FN,
+    Token::IDENTIFIER("frac"),
+    Token::LPAREN,
+    Token::IDENTIFIER("n"),
+    Token::RPAREN,
+    Token::LCURLYBRACKET,
+    
+    Token::IF,
+    Token::IDENTIFIER("n"),
+    Token::EQ,
+    Token::NUMBER("1"),
+    Token::LCURLYBRACKET,
+    Token::NUMBER("1"),
+    Token::RCURLYBRACKET,
+    Token::ELSE,
+    Token::LCURLYBRACKET,
+    Token::IDENTIFIER("frac"),
+    Token::LPAREN,
+    Token::IDENTIFIER("n"),
+    Token::SUB,
+    Token::NUMBER("1"),
+    Token::RPAREN,
+    Token::MUL,
+    Token::IDENTIFIER("n"),
+    Token::RCURLYBRACKET,
+    Token::RCURLYBRACKET,
+    Token::SEMICOLON,
+    
+    Token::TRUE
+  ])[:]
+  inspect!(nontop_fn_decl(tokens), content=
+    #|Some((LetRec({name: ("frac", Fun([Var({val: None})], Var({val: None}))), args: [("n", Var({val: None}))], body: If(Eq(Var("n"), Int(1)), Int(1), Prim(App(Var("frac"), [Prim(Var("n"), Int(1), Sub, kind=None)]), Var("n"), Mul, kind=None))}, Bool(true)), []))
+  )
+}
 test "nontop_fn_decl: valid function declaration with no parameters and no return type" {
   let tokens = ([
     // fn f() { true }
@@ -953,6 +1018,7 @@ test "nontop_fn_decl: valid function declaration with no parameters and no retur
     Token::LCURLYBRACKET,
     Token::TRUE,
     Token::RCURLYBRACKET,
+    Token::SEMICOLON,
     Token::TRUE
   ])[:]
   inspect!(nontop_fn_decl(tokens), content=
@@ -978,6 +1044,7 @@ test "nontop_fn_decl: valid function declaration with parameters and return type
     Token::LCURLYBRACKET,
     Token::TRUE,
     Token::RCURLYBRACKET,
+    Token::SEMICOLON,
     Token::TRUE
   ])[:]
   inspect!(nontop_fn_decl(tokens), content=
@@ -1000,6 +1067,7 @@ test "nontop_fn_decl: valid function declaration with parameters but no return t
     Token::LCURLYBRACKET,
     Token::TRUE,
     Token::RCURLYBRACKET,
+    Token::SEMICOLON,
     Token::TRUE
   ])[:]
   inspect!(nontop_fn_decl(tokens), content=
@@ -1018,6 +1086,7 @@ test "nontop_fn_decl: valid function declaration with no parameters but with ret
     Token::LCURLYBRACKET,
     Token::TRUE,
     Token::RCURLYBRACKET,
+    Token::SEMICOLON,
     Token::TRUE
   ])[:]
   inspect!(nontop_fn_decl(tokens), content=
@@ -1036,6 +1105,7 @@ test "nontop_fn_decl: invalid function declaration with missing closing parenthe
     Token::IDENTIFIER("y"),
     Token::COLON,
     Token::DOUBLE,
+    Token::SEMICOLON,
     Token::TRUE
   ])[:]
   inspect!(nontop_fn_decl(tokens), content="None")
@@ -1047,6 +1117,7 @@ test "nontop_fn_decl: invalid function declaration with missing closing curly br
     Token::LPAREN,
     Token::RPAREN,
     Token::LCURLYBRACKET,
+    Token::SEMICOLON,
     Token::TRUE
   ])[:]
   inspect!(nontop_fn_decl(tokens), content="None")
@@ -1061,6 +1132,7 @@ test "nontop_fn_decl: function declaration with missing arrow and return type" {
     Token::LCURLYBRACKET,
     Token::TRUE,
     Token::RCURLYBRACKET,
+    Token::SEMICOLON,
     Token::TRUE
   ])[:]
   inspect!(nontop_fn_decl(tokens), content=
@@ -1075,6 +1147,7 @@ test "nontop_fn_decl: invalid function declaration with missing identifier" {
     Token::LCURLYBRACKET,
     Token::TRUE,
     Token::RCURLYBRACKET,
+    Token::SEMICOLON,
     Token::TRUE
   ])[:]
   inspect!(nontop_fn_decl(tokens), content="None")

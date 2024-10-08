@@ -25,7 +25,8 @@ fn_body: '{' stmt '}';
 nontop_fn_decl:
 	'fn' IDENTIFIER '(' nontop_param_list? ')' (
 		'->' type
-	)? fn_body;
+	)? fn_body
+	';' stmt;
 nontop_param_list:
 	nontop_param (',' nontop_param)*;
 nontop_param: IDENTIFIER type_annotation?;
@@ -44,8 +45,6 @@ let_tuple_stmt:
 let_stmt:
 	'let' IDENTIFIER type_annotation? '=' expr ';' stmt;
 type_annotation: COLON type;
-
-fn_decl_stmt: nontop_fn_decl ';' stmt;
 
 // x[y] = z;
 assign_stmt: get_expr '=' expr ';' stmt;
