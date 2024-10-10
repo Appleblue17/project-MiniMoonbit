@@ -129,12 +129,12 @@ let dot : Parser[Token] = ptoken(
   }
 )
 
-let add : Parser[Token] = ptoken(
-  fn {
-    ADD => true
-    _ => false
-  }
-)
+// let add : Parser[Token] = ptoken(
+//   fn {
+//     ADD => true
+//     _ => false
+//   }
+// )
 
 let sub : Parser[Token] = ptoken(
   fn {
@@ -143,19 +143,19 @@ let sub : Parser[Token] = ptoken(
   }
 )
 
-let mul : Parser[Token] = ptoken(
-  fn {
-    MUL => true
-    _ => false
-  }
-)
+// let mul : Parser[Token] = ptoken(
+//   fn {
+//     MUL => true
+//     _ => false
+//   }
+// )
 
-let div : Parser[Token] = ptoken(
-  fn {
-    DIV => true
-    _ => false
-  }
-)
+// let div : Parser[Token] = ptoken(
+//   fn {
+//     DIV => true
+//     _ => false
+//   }
+// )
 
 let assign : Parser[Token] = ptoken(
   fn {
