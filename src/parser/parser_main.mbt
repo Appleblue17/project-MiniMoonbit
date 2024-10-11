@@ -1,6 +1,12 @@
 // Begin: 多元素表达式对应组合子
 
-pub let parser: Parser[Syntax] = top_level
+pub fn parser(tokens: ArrayView[Token]) -> Syntax {
+  let result = top_level(tokens)
+  match result {
+    Some((syntax, [])) => syntax
+    _ => @util.die("Parse error: cannot parse all the tokens.")
+  }
+}
 
 // Top-level
 fn top_level (tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token])?{
@@ -93,7 +99,7 @@ test "top_level: random valid cases" {
     Token::SEMICOLON,
     Token::UNIT
   ][:]), content=
-    #|Some((LetRec({name: ("f", Bool), args: [], body: Bool(true)}, Unit), []))
+    #|Some((LetRec({name: ("f", Fun([], Bool)), args: [], body: Bool(true)}, Unit), []))
   )
 
   inspect!(top_level([
@@ -131,7 +137,7 @@ test "top_level: random valid cases" {
     Token::SEMICOLON,
     Token::UNIT
   ][:]), content=
-    #|Some((LetRec({name: ("g", Bool), args: [("x", Int), ("y", Double)], body: Bool(true)}, Unit), []))
+    #|Some((LetRec({name: ("g", Fun([Int, Double], Bool)), args: [("x", Int), ("y", Double)], body: Bool(true)}, Unit), []))
   )
 }
 test "top_level: invalid cases" {
@@ -551,9 +557,12 @@ fn top_fn_decl(tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token])?{
   .and(semicolon)
   .and(top_level)
   .map( fn { (((((((((_, IDENTIFIER(id)), _), param_list), _), _), typ), body), _), rest)
-        => Syntax::LetRec(
-          { name: (id, typ), args: param_list, body: body },
-          rest )
+        => {
+          let type_list = param_list.map( fn { (_,t) => t })
+          Syntax::LetRec(
+            { name: ( id, Fun(type_list, typ) ), args: param_list, body: body },
+            rest )
+        }
       } )
   .parse(tokens)
 }
@@ -573,7 +582,7 @@ test "top_fn_decl: valid function declaration with no parameters and no return t
     Token::UNIT
   ])[:]
   inspect!(top_fn_decl(tokens), content=
-    #|Some((LetRec({name: ("f", Bool), args: [], body: Bool(true)}, Unit), []))
+    #|Some((LetRec({name: ("f", Fun([], Bool)), args: [], body: Bool(true)}, Unit), []))
   )
 }
 test "top_fn_decl: valid function declaration with parameters and return type" {
@@ -599,7 +608,7 @@ test "top_fn_decl: valid function declaration with parameters and return type" {
     Token::UNIT
   ])[:]
   inspect!(top_fn_decl(tokens), content=
-    #|Some((LetRec({name: ("f", Bool), args: [("x", Int), ("y", Double)], body: Bool(true)}, Unit), []))
+    #|Some((LetRec({name: ("f", Fun([Int, Double], Bool)), args: [("x", Int), ("y", Double)], body: Bool(true)}, Unit), []))
   )
 }
 test "top_fn_decl: valid function declaration with parameters but no return type" {
@@ -625,7 +634,7 @@ test "top_fn_decl: valid function declaration with parameters but no return type
     Token::UNIT
   ])[:]
   inspect!(top_fn_decl(tokens), content=
-    #|Some((LetRec({name: ("f", Bool), args: [("x", Int), ("y", Double)], body: Bool(true)}, Unit), []))
+    #|Some((LetRec({name: ("f", Fun([Int, Double], Bool)), args: [("x", Int), ("y", Double)], body: Bool(true)}, Unit), []))
   )
 }
 test "top_fn_decl: valid function declaration with no parameters but with return type" {
@@ -644,7 +653,7 @@ test "top_fn_decl: valid function declaration with no parameters but with return
     Token::UNIT
   ])[:]
   inspect!(top_fn_decl(tokens), content=
-    #|Some((LetRec({name: ("f", Bool), args: [], body: Bool(true)}, Unit), []))
+    #|Some((LetRec({name: ("f", Fun([], Bool)), args: [], body: Bool(true)}, Unit), []))
   )
 }
 test "top_fn_decl: invalid function declaration with missing closing parenthesis" {
@@ -694,7 +703,7 @@ test "top_fn_decl: function declaration with missing arrow and return type" {
     Token::UNIT
   ])[:]
   inspect!(top_fn_decl(tokens), content=
-    #|Some((LetRec({name: ("f", Bool), args: [], body: Bool(true)}, Unit), []))
+    #|Some((LetRec({name: ("f", Fun([], Bool)), args: [], body: Bool(true)}, Unit), []))
   )
 }
 test "top_fn_decl: invalid function declaration with missing identifier" {
