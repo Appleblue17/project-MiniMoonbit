@@ -1,6 +1,12 @@
 // Begin: 多元素表达式对应组合子
 
-pub let parser: Parser[Syntax] = top_level
+pub fn parser(tokens: ArrayView[Token]) -> Syntax {
+  let result = top_level(tokens)
+  match result {
+    Some((syntax, [])) => syntax
+    _ => @util.die("Parse error: cannot parse all the tokens.")
+  }
+}
 
 // Top-level
 fn top_level (tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token])?{
@@ -93,7 +99,7 @@ test "top_level: random valid cases" {
     Token::SEMICOLON,
     Token::UNIT
   ][:]), content=
-    #|Some((LetRec({name: ("f", Bool), args: [], body: Bool(true)}, Unit), []))
+    #|Some((LetRec({name: ("f", Fun([], Bool)), args: [], body: Bool(true)}, Unit), []))
   )
 
   inspect!(top_level([
@@ -131,7 +137,7 @@ test "top_level: random valid cases" {
     Token::SEMICOLON,
     Token::UNIT
   ][:]), content=
-    #|Some((LetRec({name: ("g", Bool), args: [("x", Int), ("y", Double)], body: Bool(true)}, Unit), []))
+    #|Some((LetRec({name: ("g", Fun([Int, Double], Bool)), args: [("x", Int), ("y", Double)], body: Bool(true)}, Unit), []))
   )
 }
 test "top_level: invalid cases" {
@@ -551,9 +557,12 @@ fn top_fn_decl(tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token])?{
   .and(semicolon)
   .and(top_level)
   .map( fn { (((((((((_, IDENTIFIER(id)), _), param_list), _), _), typ), body), _), rest)
-        => Syntax::LetRec(
-          { name: (id, typ), args: param_list, body: body },
-          rest )
+        => {
+          let type_list = param_list.map( fn { (_,t) => t })
+          Syntax::LetRec(
+            { name: ( id, Fun(type_list, typ) ), args: param_list, body: body },
+            rest )
+        }
       } )
   .parse(tokens)
 }
@@ -573,7 +582,7 @@ test "top_fn_decl: valid function declaration with no parameters and no return t
     Token::UNIT
   ])[:]
   inspect!(top_fn_decl(tokens), content=
-    #|Some((LetRec({name: ("f", Bool), args: [], body: Bool(true)}, Unit), []))
+    #|Some((LetRec({name: ("f", Fun([], Bool)), args: [], body: Bool(true)}, Unit), []))
   )
 }
 test "top_fn_decl: valid function declaration with parameters and return type" {
@@ -599,7 +608,7 @@ test "top_fn_decl: valid function declaration with parameters and return type" {
     Token::UNIT
   ])[:]
   inspect!(top_fn_decl(tokens), content=
-    #|Some((LetRec({name: ("f", Bool), args: [("x", Int), ("y", Double)], body: Bool(true)}, Unit), []))
+    #|Some((LetRec({name: ("f", Fun([Int, Double], Bool)), args: [("x", Int), ("y", Double)], body: Bool(true)}, Unit), []))
   )
 }
 test "top_fn_decl: valid function declaration with parameters but no return type" {
@@ -625,7 +634,7 @@ test "top_fn_decl: valid function declaration with parameters but no return type
     Token::UNIT
   ])[:]
   inspect!(top_fn_decl(tokens), content=
-    #|Some((LetRec({name: ("f", Bool), args: [("x", Int), ("y", Double)], body: Bool(true)}, Unit), []))
+    #|Some((LetRec({name: ("f", Fun([Int, Double], Bool)), args: [("x", Int), ("y", Double)], body: Bool(true)}, Unit), []))
   )
 }
 test "top_fn_decl: valid function declaration with no parameters but with return type" {
@@ -644,7 +653,7 @@ test "top_fn_decl: valid function declaration with no parameters but with return
     Token::UNIT
   ])[:]
   inspect!(top_fn_decl(tokens), content=
-    #|Some((LetRec({name: ("f", Bool), args: [], body: Bool(true)}, Unit), []))
+    #|Some((LetRec({name: ("f", Fun([], Bool)), args: [], body: Bool(true)}, Unit), []))
   )
 }
 test "top_fn_decl: invalid function declaration with missing closing parenthesis" {
@@ -694,7 +703,7 @@ test "top_fn_decl: function declaration with missing arrow and return type" {
     Token::UNIT
   ])[:]
   inspect!(top_fn_decl(tokens), content=
-    #|Some((LetRec({name: ("f", Bool), args: [], body: Bool(true)}, Unit), []))
+    #|Some((LetRec({name: ("f", Fun([], Bool)), args: [], body: Bool(true)}, Unit), []))
   )
 }
 test "top_fn_decl: invalid function declaration with missing identifier" {
@@ -960,11 +969,7 @@ fn nontop_fn_decl(tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token])?{
   .and(stmt)
   .map( fn { ((((((((_, IDENTIFIER(id)), _), param_list), _), typ), body), _), rest)
         => {
-          let type_list = []
-          let length = param_list.length()
-          for i = 0; i < length; i = i+1 {
-            type_list.push(param_list[i].1)
-          }
+          let type_list = param_list.map( fn { (_,t) => t })
           Syntax::LetRec(
             { name: ( id, Fun(type_list, typ) ), args: param_list, body: body },
             rest )
@@ -1436,17 +1441,17 @@ fn let_tuple_stmt(tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token])?{
             let type_list = match typ{
               Var({val: None}) => Array::make(length, Type::Var({val: None}))
               Tuple(type_list) => type_list
-              _ => raise Parsing_Error("Parsing Error: Type_annotation is not a tuple.")
+              _ => raise ParseErr("Parsing Error: Type_annotation is not a tuple.")
             }
-            if type_list.length()!=length {
-                raise Parsing_Error("Parsing Error: Type_annotation length does not correpond to the tuple.")
+            guard(type_list.length() == length) else{
+                raise ParseErr("Parsing Error: Type_annotation length does not correpond to the tuple.")
             }
             
-            let element_list = []
-            for i = 0; i < length; i = i+1 {
-              element_list.push( (id_list[i], type_list[i]) )
+            let elements = []
+            for i in 0 ..< length {
+              elements.push( (id_list[i], type_list[i]) )
             }
-            Syntax::LetTuple(element_list, expr, rest)
+            Syntax::LetTuple(elements, expr, rest)
           }
         } )
   .parse(tokens)
@@ -1886,7 +1891,7 @@ fn get_expr(tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token])?{
   Parser(get_or_apply_level_expr)
   .map( fn! {
             Syntax::Get(_, _) as input => input
-            _ => raise Parsing_Error("Parsing Error: cannot assign value to apply method.")
+            _ => raise ParseErr("Parsing Error: cannot assign value to apply method.")
         } )
   .parse(tokens)
 }
@@ -2501,7 +2506,7 @@ fn floating_point_expr(tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token])?{
             => {
               let whole_length = whole.length()
               let mut whole_value: Double = 0
-              for i = 0; i < whole_length; i = i+1 {
+              for i in 0 ..< whole_length {
                 whole_value = whole_value*10.0+(whole[i].to_int()-('0').to_int()).to_double()
               }
               
@@ -2550,14 +2555,16 @@ fn int_expr(tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token])?{
               let length = str.length()
               let mut value: Int = 0
               
-              if length > 10 { raise Parsing_Error("Parsing Error: Int value out of range.") }
-              for i = 0; i < length-1; i = i+1 {
+              guard(length <= 10) else { 
+                raise ParseErr("Parsing Error: Int value out of range.") 
+              }
+              for i in 0 ..< length-1 {
                 value = value*10+str[i].to_int()-('0').to_int()
               }
               let digit = str[length-1].to_int()-('0').to_int()
               
               if value > max_Int/10 || (value == max_Int/10 && digit > max_Int%10) {
-                raise Parsing_Error("Parsing Error: Int value out of range.")
+                raise ParseErr("Parsing Error: Int value out of range.")
               }
               value = value*10 + digit
               
@@ -2567,7 +2574,6 @@ fn int_expr(tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token])?{
   .parse(tokens)
 }
 test "int_expr: invalid cases" {
-  println(int_expr([Token::NUMBER("2147483648")][:]))
   inspect!(int_expr([Token::NUMBER("2147483648")][:]), content="None") // Out of range
   inspect!(int_expr([Token::NUMBER("9999999999")][:]), content="None") // Out of range
 }

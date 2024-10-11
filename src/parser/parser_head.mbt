@@ -5,7 +5,7 @@ typealias Op = @types.Op
 typealias Fundef = @types.Fundef
 typealias Type = @types.Type
 
-type! Parsing_Error String
+type! ParseErr String
 
 let max_Int: Int = 2147483647
 
@@ -26,14 +26,14 @@ fn ptoken(predicate : (Token) -> Bool) -> Parser[Token] {
   }
 }
 
-fn map[I, O](self : Parser[I], f : (I) -> O!Parsing_Error) -> Parser[O] {
+fn map[I, O](self : Parser[I], f : (I) -> O!ParseErr) -> Parser[O] {
   fn {
     input =>
       match self.parse(input) {
         Some((token, rest)) => {
           match f?(token){
             Ok(ret) => Some( (ret, rest) )
-            Err(Parsing_Error(msg)) => {
+            Err(ParseErr(msg)) => {
               // println(msg)
               None
             }
