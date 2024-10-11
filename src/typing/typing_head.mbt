@@ -28,12 +28,6 @@ struct InfType{
 }
 
 ////////////// used to debug //////////////
-fn show(x: Result[InfType, TypeErr]) -> String{
-  match x {
-    Ok(t) => t.to_string()
-    Err(TypeErr(e)) => e
-  }
-}
 fn to_string(self: MyType) -> String{
   match self {
     Unit => "Unit"
@@ -81,7 +75,6 @@ let inftype_Unit: InfType = InfType::new(Unit)
 let inftype_Double: InfType = InfType::new(Double)
 let inftype_Int: InfType = InfType::new(Int)
 let inftype_Bool: InfType = InfType::new(Bool)
-let inftype_Kind: InfType = InfType::new(Kind)
 
 let node_list: Array[InfType] = []
 fn InfType::new(typ: MyType, ~link: Syntax = Unit) -> InfType{
@@ -116,5 +109,3 @@ fn InfType::type2inf(ty: Type) -> InfType {
     _ => InfType::new_tvar()
   }
 }
-
-type! TypeErr String
