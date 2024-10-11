@@ -99,7 +99,7 @@ fn infer(ctx: LocalCtx, e: Syntax, ~is_top: Bool = false) -> InfType {
       ty
     }
     Array(x, num) => {
-      let ty = infer(ctx, x)
+      let ty = new(Array(infer(ctx, x)))
       let num_ty = infer(ctx, num)
       unify(num_ty, inftype_Int)
       ty
@@ -251,7 +251,7 @@ fn topo_sort() -> Unit{
         }
         Tuple(sol_elements)
       }
-      Array(ty) => { ty.get_dsu_father().sol_typ }
+      Array(ty) => { Array(ty.get_dsu_father().sol_typ) }
     }
     
     for fat in node.father {
