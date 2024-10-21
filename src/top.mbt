@@ -50,6 +50,10 @@ pub enum Type {
   Ptr
 } derive(Show)
 
+pub fn new_tvar() -> Type{
+  Var(Ref::new(None))
+}
+
 pub fn Type::is_ptr_like(self : Type) -> Bool {
   match self {
     Fun(_) | Tuple(_) | Array(_) | Ptr => true

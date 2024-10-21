@@ -82,7 +82,7 @@ pub fn Fundef::from_json(json : Json) -> Fundef!Error {
   fn from_json(json : ArrayView[Json]) -> Array[(String, Type)]!Error {
     let array = []
     for i = 0; i < json.length(); i = i + 1 {
-      match json {
+      match json[i] {
         [name, ty] => {
           let name = match name.as_string() {
             Some(name) => name
@@ -131,7 +131,7 @@ pub fn to_json(self : Syntax) -> Json {
     Neg(e, kind=Some(Double)) => ["FNeg", e.to_json()]
     Neg(e, kind=_) => ["Neg", e.to_json()]
     Prim(e1, e2, op, ~kind) => {
-      let op = if kind == Some(Double) { "F\{op}" } else { "{op}" }
+      let op = if kind == Some(Double) { "F\{op}" } else { "\{op}" }
       [op |> Json::String, e1.to_json(), e2.to_json()]
     }
     Eq(e1, e2) => ["Eq", e1.to_json(), e2.to_json()]
