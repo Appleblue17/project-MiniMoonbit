@@ -1,5 +1,5 @@
 fn main {
-  fn f() -> Int {
+  fn f() {
     12345
   };
   let y = Array::make(10, 3);
