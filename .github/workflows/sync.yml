@@ -44,6 +44,7 @@ jobs:
         upstream_sync_repo: moonbitlang/minimoonbit-public
         upstream_repo_access_token: ${{ secrets.UPSTREAM_REPO_SECRET }}
         upstream_pull_args: '--allow-unrelated-histories'
+        shallow_since: '1 day ago'
         
         # Set test_mode true during manual dispatch to run tests instead of the true action!!
         test_mode: ${{ inputs.main_mode }}
