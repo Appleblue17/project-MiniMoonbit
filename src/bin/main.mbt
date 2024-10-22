@@ -126,7 +126,9 @@ fn CompileStatus::output(self : CompileStatus, json : Bool) -> String {
   if json {
     match self.curr_stage {
       Parse => self.source_code.unwrap()
-      Typecheck => @json.stringify(self.ast.unwrap().to_json())
+      Typecheck => {
+        @json.stringify(self.ast.unwrap().to_json())
+      }
       Knf => @json.stringify(self.typechecked.unwrap().to_json())
       KnfOpt => @json.stringify(self.knf.unwrap().to_json())
       Closure => @json.stringify(self.opt_knf.unwrap().to_json())
@@ -255,7 +257,7 @@ fn main {
     "",
     argv,
   )
-
+  
   // Configure pipeline
   if knf_interpreter.val {
     end_stage.val = Stages::Knf
@@ -308,7 +310,7 @@ fn main {
     let knfi = @knf_eval.KnfInterpreter::new()
     add_interpreter_fns(knfi)
     match knfi.eval_full?(status.knf.unwrap()) {
-      Ok(_) => ()
+      Ok(ret) => println("Returned: \{ret}")
       Err(Failure(e)) => {
         println(e)
         @util.die("KNF interpreter error")

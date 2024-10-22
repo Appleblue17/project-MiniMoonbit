@@ -308,7 +308,6 @@ fn topo_sort() -> Unit{
 }
 
 pub fn typing(e : Syntax) -> Syntax {
-  // TODO: init, reset node_list and extenv
   loop e {
     Let((f, t), _, rest) => {
       extenv[f] = type2inf(t)

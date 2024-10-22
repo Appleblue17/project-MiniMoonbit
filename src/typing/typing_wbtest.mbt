@@ -60,5 +60,6 @@ test "ex_frac" {
   // println(show(infer?(@immut/hashmap.new(), syntax)))
   // topo_sort()
   let res = typing(syntax)
-  println(res)
+  // println(res)
+  println(@json.stringify(res.to_json()))
 }

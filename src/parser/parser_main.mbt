@@ -2215,7 +2215,7 @@ fn get_or_apply_level_expr(tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token
       .and(rparen)
       .map( fn { (((_, arg_0), args), _)
               => {
-                args.insert(0,arg_0)
+                args.insert(0, arg_0)
                 Apply_args(args) 
               }
             } )
