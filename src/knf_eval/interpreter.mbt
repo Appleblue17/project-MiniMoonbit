@@ -61,14 +61,31 @@ pub fn KnfInterpreter::eval(
 ) -> Value!Failure {
   match expr {
     Unit => Unit
+    Bool(false) => Int(0)
+    Bool(true) => Int(1)
     Int(i) => Int(i)
     Double(d) => Double(d)
     Var(v) => find!(env, v)
+    Not(x) => {
+      let x = find!(env, x)
+      match x {
+        Int(x) => Int(1-x)
+        _ => fail!("type mismatch, not expects Bool")
+      }
+    }
     Neg(x) => {
       let x = find!(env, x)
       match x {
         Int(x) => Int(-x)
         _ => fail!("type mismatch, neg expects Int")
+      }
+    }
+    Array(x, y) => {
+      let x = find!(env, x)
+      let y = find!(env, y)
+      match (x, y) {
+        (Int(x), y) => Array(Array::make(x, y))
+        _ => fail!("type mismatch, array expects Int")
       }
     }
     Add(x, y) => {

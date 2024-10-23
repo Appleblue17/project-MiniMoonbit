@@ -107,9 +107,4 @@ fn many[Value: Show](self : Parser[Value]) -> Parser[Array[Value]] {
   }
 }
 
-// fn Parser::ref[Value](ref : Ref[Parser[Value]]) -> Parser[Value] {
-//   fn(input) { ref.val.parse(input) }
-// }
-
-
 // End: 基本组合子

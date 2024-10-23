@@ -1,0 +1,29 @@
+pub typealias LocalEnv = @immut/hashmap.T[String, Type]
+
+struct KnfEnv {
+  mut counter : Int
+  externals : @immut/hashmap.T[String, Type]
+  ctx: @immut/hashmap.T[String, Name]
+}
+
+pub fn KnfEnv::new(externals : @immut/hashmap.T[String, Type]) -> KnfEnv {
+  { counter: 1, externals, ctx: @immut/hashmap.T::new() }
+}
+
+pub fn KnfEnv::init_counter_from_existing(
+  self : KnfEnv,
+  existing : Knf
+) -> Unit {
+  self.counter = knf_max_counter(existing) + 1
+}
+
+fn KnfEnv::new_name(self : KnfEnv) -> Name {
+  let temp = Name::slot_only(self.counter)
+  self.counter += 1
+  temp
+}
+fn KnfEnv::new_str_name(self : KnfEnv, name : String) -> Name {
+  let counter = self.counter
+  self.counter += 1
+  { name: Some(name), slot: counter }
+}

@@ -1,34 +1,3 @@
-pub typealias LocalEnv = @immut/hashmap.T[String, Type]
-
-struct KnfEnv {
-  mut counter : Int
-  externals : @immut/hashmap.T[String, Type]
-  ctx: @immut/hashmap.T[String, Name]
-}
-
-pub fn KnfEnv::new(externals : @immut/hashmap.T[String, Type]) -> KnfEnv {
-  { counter: 1, externals, ctx: @immut/hashmap.T::new() }
-}
-
-pub fn KnfEnv::init_counter_from_existing(
-  self : KnfEnv,
-  existing : Knf
-) -> Unit {
-  self.counter = knf_max_counter(existing) + 1
-}
-
-fn KnfEnv::new_name(self : KnfEnv) -> Name {
-  let temp = Name::slot_only(self.counter)
-  self.counter += 1
-  temp
-}
-fn KnfEnv::new_str_name(self : KnfEnv, name : String) -> Name {
-  let counter = self.counter
-  self.counter += 1
-  { name: Some(name), slot: counter }
-}
-
-
 fn ast_to_knf(env : KnfEnv, syntax : Syntax) -> Knf {
   match syntax {
     Unit => Unit
@@ -85,7 +54,7 @@ fn ast_to_knf(env : KnfEnv, syntax : Syntax) -> Knf {
         match kind {
           Some(Int) => Neg(expr_name)
           Some(Double) => FNeg(expr_name)
-          _ => @util.die("KNF Error: Neg must have a kind, there is a problem with typing.")
+          _ => @util.die("KNF error: Neg must have a kind, there is a problem with typing.")
         }
       )
     }
@@ -105,8 +74,11 @@ fn ast_to_knf(env : KnfEnv, syntax : Syntax) -> Knf {
       
       let init = match func {
         Var(str) => {
-          if (env.externals[str] != None) { ExternalFunctionApplication(str, arg_names) }
-          else { Apply(env.new_name(), arg_names) }
+          if(env.ctx[str] != None) { Apply(env.ctx[str].unwrap(), arg_names) }
+          else {
+            if (env.externals[str] != None) { ExternalFunctionApplication("minimbt_"+str, arg_names) }
+            else { @util.die("KNF error: function not found.") }
+          }
         }
         _ => Apply(env.new_name(), arg_names)
       }
@@ -161,9 +133,7 @@ fn ast_to_knf(env : KnfEnv, syntax : Syntax) -> Knf {
             (Mul, Some(Double)) => FMul(a_name, b_name)
             (Div, Some(Double)) => FDiv(a_name, b_name)
             _ => {
-              println(op)
-              println(kind)
-              @util.die("KNF Error: Prim must have a kind, there is a problem with typing.")
+              @util.die("KNF error: Prim must have a kind, there is a problem with typing.")
             }
           }
         )
@@ -230,7 +200,7 @@ fn ast_to_knf(env : KnfEnv, syntax : Syntax) -> Knf {
       // It's gauranteed that tuple is Tuple(...).
       match tuple {
         Tuple(_) => ()
-        _ => @util.die("KNF Error: LetTuple must have a tuple as the second argument.")
+        _ => @util.die("KNF error: LetTuple must have a tuple as the second argument.")
       }
       let Tuple(exprs) = tuple
       let exprs_knf = exprs.map( fn { expr => ast_to_knf(env, expr) } )
@@ -270,7 +240,6 @@ fn ast_to_knf(env : KnfEnv, syntax : Syntax) -> Knf {
   }
   
 }
-
 test "ex_frac" {
   let env = KnfEnv::new(@immut/hashmap.T::new())
   let var_name = env.new_str_name("main")
@@ -281,7 +250,19 @@ test "ex_frac" {
   let input = @types.Syntax::from_json!(@json.parse!(
     #|["LetRec",{"name":["main",["Fun",[],"Unit"]],"args":[],"body":["LetRec",{"name":["frac",["Fun",[["Var",["Some","Int"]]],["Var",["Some","Int"]]]],"args":[["n",["Var",["Some","Int"]]]],"body":["If",["Eq",["Var","n"],["Int",1]],["Int",1],["Mul",["App",["Var","frac"],[["Sub",["Var","n"],["Int",1]]]],["Var","n"]]]},["App",["Var","print_int"],[["App",["Var","frac"],[["Int",6]]]]]]},"Unit"] 
   ))
-  println(ast_to_knf(new_env, input).to_pretty_print())
+  println(new_env.to_knf(input).to_pretty_print())
+}
+test "non-tail-if2" {
+  let env = KnfEnv::new(@immut/hashmap.T::new())
+  let var_name = env.new_str_name("main")
+  let new_env = {..env,
+      externals: env.externals.add("print_int", Unit), 
+      ctx: env.ctx.add("main", var_name) }
+  
+  let input = @types.Syntax::from_json!(@json.parse!(
+    #|["LetRec",{"name":["main",["Fun",[],"Unit"]],"args":[],"body":["LetRec",{"name":["f",["Fun",[],["Var",["Some","Int"]]]],"args":[],"body":["Int",12345]},["Let",["y",["Var",["Some",["Array","Int"]]]],["Array",["Int",10],["Int",3]],["Let",["x",["Var",["Some","Int"]]],["Int",67890],["App",["Var","print_int"],[["If",["Eq",["Get",["Var","y"],["Int",0]],["Int",3]],["Add",["Add",["App",["Var","f"],[]],["Get",["Var","y"],["Int",1]]],["Var","x"]],["Int",7]]]]]]]},"Unit"] 
+  ))
+  println(new_env.to_knf(input).to_pretty_print())
 }
 
 
@@ -359,8 +340,23 @@ test "Basic Syntax Conversion" {
   inspect!(ast_to_knf(env, Double(3.14)), content="Double(3.14)")
 }
 
+/// Preprocesses the syntax tree, extracting the contents of functions `main` and `init` to top-level.
+fn KnfEnv::syntax_preprocess(e : Syntax, main: Syntax?) -> Syntax {
+  match e {
+    Let(name, expr, rest) => {
+      Let(name, expr, syntax_preprocess(rest, main))
+    }
+    LetRec({ name: (str, _), body, .. } as func, rest) => {
+      if str == "main" { syntax_preprocess(rest, Some(body)) }
+      else { LetRec(func, syntax_preprocess(rest, main )) }
+      
+    }
+    Unit => main.unwrap()
+  }
+}
 
 
 pub fn KnfEnv::to_knf(self : KnfEnv, syntax : @types.Syntax) -> Knf {
-  ast_to_knf(self, syntax)
+  let new_syntax = syntax_preprocess(syntax, None)
+  ast_to_knf(self, new_syntax)
 }

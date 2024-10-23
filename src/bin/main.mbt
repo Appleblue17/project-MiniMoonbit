@@ -140,7 +140,11 @@ fn CompileStatus::output(self : CompileStatus, json : Bool) -> String {
       Parse => self.source_code.unwrap()
       Typecheck => self.ast.unwrap().to_string()
       Knf => self.typechecked.unwrap().to_string()
-      KnfOpt => self.knf.unwrap().to_string()
+      KnfOpt => {
+        // println(self.knf.unwrap().to_pretty_print())
+        ""
+        // self.knf.unwrap().to_string()
+      }
       Closure => self.opt_knf.unwrap().to_string()
       Asm => @util.die("TODO")
       Finished => @riscv.print_functions(self.asm.unwrap())
@@ -310,7 +314,7 @@ fn main {
     let knfi = @knf_eval.KnfInterpreter::new()
     add_interpreter_fns(knfi)
     match knfi.eval_full?(status.knf.unwrap()) {
-      Ok(ret) => println("Returned: \{ret}")
+      Ok(_) => ()
       Err(Failure(e)) => {
         println(e)
         @util.die("KNF interpreter error")
