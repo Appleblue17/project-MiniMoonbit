@@ -142,8 +142,7 @@ fn CompileStatus::output(self : CompileStatus, json : Bool) -> String {
       Knf => self.typechecked.unwrap().to_string()
       KnfOpt => {
         // println(self.knf.unwrap().to_pretty_print())
-        ""
-        // self.knf.unwrap().to_string()
+        self.knf.unwrap().to_string()
       }
       Closure => self.opt_knf.unwrap().to_string()
       Asm => @util.die("TODO")
