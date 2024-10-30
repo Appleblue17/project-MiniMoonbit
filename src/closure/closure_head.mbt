@@ -32,7 +32,7 @@ pub enum Expr {
   LetTuple(Array[(Name, LowType)], Name, Expr)
   ArrayGet(Name, Name)
   ArrayPut(Name, Name, Name)
-  ExternalArray(Label)
+  ExternalArray(Label) // not used
 } derive(Show)
 
 pub struct Closure {
