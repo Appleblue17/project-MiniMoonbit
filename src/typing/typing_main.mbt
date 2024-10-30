@@ -40,7 +40,9 @@ fn unify(t1: InfType, t2: InfType) -> Unit {
         }
         (Array(t1), Array(t2)) => { unify(t1, t2) }
         
-        _ => @util.die("Type error: type not match.")
+        _ => {
+          @util.die("Type error: type not match.")
+        }
       }
     }
   }
