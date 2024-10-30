@@ -64,14 +64,31 @@ pub fn ClosureInterpreter::eval(
 ) -> Value!Failure {
   match expr {
     Unit => Unit
+    Bool(true) => Int(1)
+    Bool(false) => Int(0)
     Int(i) => Int(i)
     Double(d) => Double(d)
     Var(v) => find!(env, v)
+    Not(x) => {
+      let x = find!(env, x)
+      match x {
+        Int(x) => Int(1-x)
+        _ => fail!("type mismatch, not expects Bool")
+      }
+    }
     Neg(x) => {
       let x = find!(env, x)
       match x {
         Int(x) => Int(-x)
         _ => fail!("type mismatch, neg expects Int")
+      }
+    }
+    MakeArray(x, y) => {
+      let x = find!(env, x)
+      let y = find!(env, y)
+      match (x, y) {
+        (Int(x), v) => Array(Array::make(x, v))
+        _ => fail!("type mismatch, makearray expects Int")
       }
     }
     Add(x, y) => {

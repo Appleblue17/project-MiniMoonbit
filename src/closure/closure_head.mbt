@@ -1,14 +1,17 @@
 pub type Label String derive(Show)
 
-pub typealias Name = @types.Name
-
-pub typealias Type = @types.Type
+typealias Name = @types.Name
+typealias Type = @types.Type
+typealias Knf = @knf.Knf
 
 pub enum Expr {
   Unit
+  Bool(Bool) // modified
   Int(Int)
   Double(Double)
+  Not(Name) // modified
   Neg(Name)
+  MakeArray(Name, Name) // modified
   Add(Name, Name)
   Sub(Name, Name)
   Mul(Name, Name)
@@ -29,7 +32,7 @@ pub enum Expr {
   LetTuple(Array[(Name, LowType)], Name, Expr)
   ArrayGet(Name, Name)
   ArrayPut(Name, Name, Name)
-  ExternalArray(Label)
+  ExternalArray(Label) // not used
 } derive(Show)
 
 pub struct Closure {

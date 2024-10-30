@@ -24,7 +24,7 @@ test "ex_frac_mini" {
             kind=None
           )
         )
-      }, 
+      },
     Unit)
   // println(show(infer?(@immut/hashmap.new(), syntax)))
   // topo_sort()
@@ -57,6 +57,25 @@ test "ex_frac" {
       }, 
     App(Var("print_int"), [App(Var("frac"), [Int(6)])]))}, 
     Unit)
+  // println(show(infer?(@immut/hashmap.new(), syntax)))
+  // topo_sort()
+  let res = typing(syntax)
+  // println(res)
+  println(@json.stringify(res.to_json()))
+}
+
+test "adder" {
+  let syntax: Syntax =
+    LetRec({name: ("make_adder", Fun([Int], Fun([Int], Int))), args: [("x", Int)], body: 
+      LetRec({name: ("adder", Fun([Int], Int)), args: [("y", Int)], body: 
+        Prim(Var("x"), Var("y"), Add, kind=Some(@types.Kind::Int))
+      }, 
+      Var("adder"))
+    }, 
+    LetRec({name: ("main", Fun([], Unit)), args: [], body: 
+      App(Var("print_int"), [App(App(Var("make_adder"), [Int(3)]), [Int(7)])])
+    }, 
+    Unit))
   // println(show(infer?(@immut/hashmap.new(), syntax)))
   // topo_sort()
   let res = typing(syntax)

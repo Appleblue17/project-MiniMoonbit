@@ -1,9 +1,13 @@
 pub fn Expr::to_json(self : Expr) -> Json {
   match self {
     Expr::Unit => ["Unit"]
+    Expr::Bool(true) => ["Bool", true]
+    Expr::Bool(false) => ["Bool", false]
     Expr::Int(i) => ["Int", Number(i.to_double())]
     Expr::Double(d) => ["Double", Number(d)]
+    Expr::Not(n) => ["Not", n.to_json()]
     Expr::Neg(n) => ["Neg", n.to_json()]
+    Expr::MakeArray(n1, n2) => ["MakeArray", n1.to_json(), n2.to_json()]
     Expr::Add(n1, n2) => ["Add", n1.to_json(), n2.to_json()]
     Expr::Sub(n1, n2) => ["Sub", n1.to_json(), n2.to_json()]
     Expr::Mul(n1, n2) => ["Mul", n1.to_json(), n2.to_json()]
