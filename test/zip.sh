@@ -1,0 +1,1 @@
+git archive -o submit.zip HEAD
