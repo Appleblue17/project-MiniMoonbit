@@ -185,28 +185,28 @@ pub fn Syntax::from_json(json : Json) -> Syntax! {
         e1 |> Syntax::from_json!(),
         e2 |> Syntax::from_json!(),
         Add,
-        kind=None,
+        kind=Some(Int),
       )
     ["Sub", e1, e2] =>
       Prim(
         e1 |> Syntax::from_json!(),
         e2 |> Syntax::from_json!(),
         Sub,
-        kind=None,
+        kind=Some(Int),
       )
     ["Mul", e1, e2] =>
       Prim(
         e1 |> Syntax::from_json!(),
         e2 |> Syntax::from_json!(),
         Mul,
-        kind=None,
+        kind=Some(Int),
       )
     ["Div", e1, e2] =>
       Prim(
         e1 |> Syntax::from_json!(),
         e2 |> Syntax::from_json!(),
         Div,
-        kind=None,
+        kind=Some(Int),
       )
     ["FAdd", e1, e2] =>
       Syntax::Prim(

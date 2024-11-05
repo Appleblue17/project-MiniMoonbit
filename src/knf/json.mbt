@@ -1,9 +1,13 @@
 pub fn Knf::to_json(self : Knf) -> Json {
   match self {
     Unit => ["Unit"]
+    Bool(true) => ["Bool", True]
+    Bool(false) => ["Bool", False]
     Int(i) => ["Int", Number(i.to_double())]
     Double(d) => ["Double", Number(d)]
+    Not(n) => ["Not", n.to_json()]
     Neg(n) => ["Neg", n.to_json()]
+    Array(n1, n2) => ["Array", n1.to_json(), n2.to_json()]
     Add(n1, n2) => ["Add", n1.to_json(), n2.to_json()]
     Sub(n1, n2) => ["Sub", n1.to_json(), n2.to_json()]
     Mul(n1, n2) => ["Mul", n1.to_json(), n2.to_json()]
@@ -51,9 +55,13 @@ pub fn FuncDef::to_json(self : FuncDef) -> Json {
 pub fn Knf::from_json(json : Json) -> Knf! {
   match json {
     ["Unit"] => Unit
+    ["Bool", True] => Bool(true)
+    ["Bool", False] => Bool(false)
     ["Int", Number(i)] => Int(i.to_int())
     ["Double", Number(d)] => Double(d)
+    ["Not", n] => Not(Name::from_json!(n))
     ["Neg", n] => Neg(Name::from_json!(n))
+    ["Array", n1, n2] => Array(Name::from_json!(n1), Name::from_json!(n2))
     ["Add", n1, n2] => Add(Name::from_json!(n1), Name::from_json!(n2))
     ["Sub", n1, n2] => Sub(Name::from_json!(n1), Name::from_json!(n2))
     ["Mul", n1, n2] => Mul(Name::from_json!(n1), Name::from_json!(n2))
@@ -119,7 +127,7 @@ pub fn Knf::from_json(json : Json) -> Knf! {
 
 pub fn FuncDef::from_json(json : Json) -> FuncDef! {
   match json {
-    { "name": n, "ty": t, "args": Array(args), "body": k } => {
+    { "name": n, "ty": t, "args": [.. as args], "body": k } => {
       let rargs = []
       for it in args {
         match it {

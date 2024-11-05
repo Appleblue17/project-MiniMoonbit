@@ -73,6 +73,7 @@ get_or_apply_level_expr:
 // Value expressions
 value_expr:
 	unit_expr
+	| group_expr
 	| tuple_expr
 	| bool_expr
 	| identifier_expr
@@ -83,6 +84,7 @@ value_expr:
 	| not_expr
 	| array_make_expr;
 unit_expr: '(' ')'; // ()
+group_expr: '(' expr ')'; // (x)
 tuple_expr:
 	'(' expr (',' expr)+ ')'; // (x, y); 1-tuple is not allowed
 block_expr: '{' stmt '}'; // { blah; blah; }
@@ -105,7 +107,7 @@ type:
 	| function_type
 	| tuple_type;
 array_type: 'Array' '[' type ']';
-tuple_type: '(' type (',' type)+ ')'; // (Int, Bool)
+tuple_type: '(' type (',' type)+ ')'; // (Int, Bool) // modified
 function_type:
 	'(' type (',' type)* ')' '->' type; // (Int, Bool) -> Int
 
@@ -123,7 +125,7 @@ IF: 'if';
 ELSE: 'else';
 FN: 'fn';
 LET: 'let';
-MAKE: 'make';
+MAKE: 'make'; // modified
 NUMBER: [0-9]+;
 IDENTIFIER: [a-zA-Z_][a-zA-Z0-9_]*;
 DOT: '.';

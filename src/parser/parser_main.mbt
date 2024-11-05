@@ -1926,6 +1926,9 @@ fn expr(tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token])?{
   )
   .parse(tokens)
 }
+test "expr function: group expressions" {
+  inspect!(expr([Token::LPAREN, Token::NUMBER("1"), Token::RPAREN][:]), content="Some((Int(1), []))")
+}
 test "expr function: empty input" {
   inspect!(expr([][:]), content="None")
 }
@@ -2215,7 +2218,7 @@ fn get_or_apply_level_expr(tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token
       .and(rparen)
       .map( fn { (((_, arg_0), args), _)
               => {
-                args.insert(0,arg_0)
+                args.insert(0, arg_0)
                 Apply_args(args) 
               }
             } )
@@ -2353,6 +2356,7 @@ test "get_or_apply_level_expr: basic functionality" {
 
 fn value_expr(tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token])?{
   Parser(unit_expr)
+  .or(group_expr)
   .or(tuple_expr)
   .or(bool_expr)
   .or(identifier_expr)
@@ -2371,6 +2375,16 @@ fn unit_expr(tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token])?{
   .and(rparen)
   .map( fn { _
             => Syntax::Unit } )
+  .parse(tokens)
+}
+
+fn group_expr(tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token])?{
+  // (expr)
+  lparen
+  .and(expr)
+  .and(rparen)
+  .map( fn { ((_, expr), _)
+            => expr } )
   .parse(tokens)
 }
 

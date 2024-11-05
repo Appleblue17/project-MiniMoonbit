@@ -111,6 +111,70 @@ test "ex_frac" {
   println(@json.stringify(res.to_json()))
 }
 
+test "adder" {
+  let res = parser([
+    Token::FN,
+    Token::IDENTIFIER("make_adder"),
+    Token::LPAREN,
+    Token::IDENTIFIER("x"),
+    Token::COLON,
+    Token::INT,
+    Token::RPAREN,
+    Token::ARROW,
+    Token::LPAREN,
+    Token::INT,
+    Token::RPAREN,
+    Token::ARROW,
+    Token::INT,
+    Token::LCURLYBRACKET,
+    
+    Token::FN,
+    Token::IDENTIFIER("adder"),
+    Token::LPAREN,
+    Token::IDENTIFIER("y"),
+    Token::COLON,
+    Token::INT,
+    Token::RPAREN,
+    Token::ARROW,
+    Token::INT,
+    Token::LCURLYBRACKET,
+    Token::IDENTIFIER("x"),
+    Token::ADD,
+    Token::IDENTIFIER("y"),
+    Token::RCURLYBRACKET,
+    Token::SEMICOLON,
+    
+    Token::IDENTIFIER("adder"),
+    Token::RCURLYBRACKET,
+    Token::SEMICOLON,
+    
+    Token::FN,
+    Token::IDENTIFIER("main"),
+    Token::LCURLYBRACKET,
+    Token::IDENTIFIER("print_int"),
+    Token::LPAREN,
+    Token::LPAREN,
+    Token::IDENTIFIER("make_adder"),
+    Token::LPAREN,
+    Token::NUMBER("3"),
+    Token::RPAREN,
+    Token::RPAREN,
+    Token::LPAREN,
+    Token::NUMBER("7"),
+    Token::RPAREN,
+    Token::RPAREN,
+    
+    Token::RCURLYBRACKET,
+    Token::SEMICOLON,
+    
+    Token::UNIT
+  ][:])
+  inspect!(res, content=
+    #|LetRec({name: ("make_adder", Fun([Int], Fun([Int], Int))), args: [("x", Int)], body: LetRec({name: ("adder", Fun([Int], Int)), args: [("y", Int)], body: Prim(Var("x"), Var("y"), Add, kind=None)}, Var("adder"))}, LetRec({name: ("main", Fun([], Unit)), args: [], body: App(Var("print_int"), [App(App(Var("make_adder"), [Int(3)]), [Int(7)])])}, Unit))
+  )
+  println(@json.stringify(res.to_json()))
+}
+
 test "func" {
   let res = parser([
     Token::FN,
@@ -132,6 +196,80 @@ test "func" {
   ][:])
   inspect!(res, content=
     #|LetRec({name: ("fib", Fun([Int], Int)), args: [("n", Int)], body: Prim(Int(1), Int(1), Add, kind=None)}, Unit)
+  )
+  println(@json.stringify(res.to_json()))
+}
+
+test "non-tail-if2" {
+  let res = parser([
+    Token::FN,
+    Token::IDENTIFIER("main"),
+    Token::LCURLYBRACKET,
+    
+    Token::FN,
+    Token::IDENTIFIER("f"),
+    Token::LPAREN,
+    Token::RPAREN,
+    Token::LCURLYBRACKET,
+    Token::NUMBER("12345"),
+    Token::RCURLYBRACKET,
+    Token::SEMICOLON,
+    
+    Token::LET,
+    Token::IDENTIFIER("y"),
+    Token::ASSIGN,
+    Token::ARRAY,
+    Token::COLON,
+    Token::COLON,
+    Token::MAKE,
+    Token::LPAREN,
+    Token::NUMBER("10"),
+    Token::COMMA,
+    Token::NUMBER("3"),
+    Token::RPAREN,
+    Token::SEMICOLON,
+    
+    Token::LET,
+    Token::IDENTIFIER("x"),
+    Token::ASSIGN,
+    Token::NUMBER("67890"),
+    Token::SEMICOLON,
+    
+    Token::IDENTIFIER("print_int"),
+    Token::LPAREN,
+    Token::IF,
+    Token::IDENTIFIER("y"),
+    Token::LBRACKET,
+    Token::NUMBER("0"),
+    Token::RBRACKET,
+    Token::EQ,
+    Token::NUMBER("3"),
+    Token::LCURLYBRACKET,
+    Token::IDENTIFIER("f"),
+    Token::LPAREN,
+    Token::RPAREN,
+    Token::ADD,
+    Token::IDENTIFIER("y"),
+    Token::LBRACKET,
+    Token::NUMBER("1"),
+    Token::RBRACKET,
+    Token::ADD,
+    Token::IDENTIFIER("x"),
+    Token::RCURLYBRACKET,
+    Token::ELSE,
+    Token::LCURLYBRACKET,
+    Token::NUMBER("7"),
+    Token::RCURLYBRACKET,
+    Token::RPAREN,
+    
+    Token::RCURLYBRACKET,
+    Token::SEMICOLON,
+    
+    Token::UNIT
+  ][:])
+  
+  inspect!(res, content=
+    #|LetRec({name: ("main", Fun([], Unit)), args: [], body: LetRec({name: ("f", Fun([], Var({val: None}))), args: [], body: Int(12345)}, Let(("y", Var({val: None})), Array(Int(10), Int(3)), Let(("x", Var({val: None})), Int(67890), App(Var("print_int"), [If(Eq(Get(Var("y"), Int(0)), Int(3)), Prim(Prim(App(Var("f"), []), Get(Var("y"), Int(1)), Add, kind=None), Var("x"), Add, kind=None), Int(7))]))))}, Unit)
   )
   println(@json.stringify(res.to_json()))
 }

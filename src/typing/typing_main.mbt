@@ -40,7 +40,9 @@ fn unify(t1: InfType, t2: InfType) -> Unit {
         }
         (Array(t1), Array(t2)) => { unify(t1, t2) }
         
-        _ => @util.die("Type error: type not match.")
+        _ => {
+          @util.die("Type error: type not match.")
+        }
       }
     }
   }
@@ -68,7 +70,7 @@ let extenv : Map[String, InfType] = {
 typealias LocalCtx = @immut/hashmap.T[String, InfType]
 
 /// This infer function is only for **nontop** syntax.
-fn infer(ctx: LocalCtx, e: Syntax, ~is_top: Bool = false) -> InfType {
+fn infer(ctx: LocalCtx, e: Syntax) -> InfType {
   match e {
     Unit => inftype_Unit
     Bool(_) => inftype_Bool
@@ -98,8 +100,8 @@ fn infer(ctx: LocalCtx, e: Syntax, ~is_top: Bool = false) -> InfType {
       unify(ty, inftype_Bool)
       ty
     }
-    Array(x, num) => {
-      let ty = infer(ctx, x)
+    Array(num, x) => {
+      let ty = new(Array(infer(ctx, x)))
       let num_ty = infer(ctx, num)
       unify(num_ty, inftype_Int)
       ty
@@ -149,10 +151,7 @@ fn infer(ctx: LocalCtx, e: Syntax, ~is_top: Bool = false) -> InfType {
       inftype_Bool
     }
     Let((f, t), expr, rest) => {
-      let f_ty = {
-        if is_top { extenv[f].unwrap() }
-        else { type2inf(t) }
-      }
+      let f_ty = type2inf(t)
       
       let env_with_f = ctx.add(f, f_ty)
       
@@ -160,13 +159,10 @@ fn infer(ctx: LocalCtx, e: Syntax, ~is_top: Bool = false) -> InfType {
       expr_ty.link = e
       unify(f_ty, expr_ty)
       
-      infer(env_with_f, rest, ~is_top)
+      infer(env_with_f, rest)
     }
     LetRec({ name: (f, t), args, body }, rest) => {
-      let f_ty = {
-        if is_top { extenv[f].unwrap() }
-        else { type2inf(t) }
-      }
+      let f_ty = type2inf(t)
       
       let env_with_f = ctx.add(f, f_ty)
       let mut env_with_params = env_with_f
@@ -180,7 +176,7 @@ fn infer(ctx: LocalCtx, e: Syntax, ~is_top: Bool = false) -> InfType {
       let body_ty = infer(env_with_params, body)
       unify(f_ty, new(Fun(args_ty, body_ty), link = e))
       
-      infer(env_with_f, rest, ~is_top)
+      infer(env_with_f, rest)
     }
     LetTuple(elements, expr, rest) => {
       // It's guaranteed that the length of elements and values are equal in parsing section.
@@ -251,7 +247,7 @@ fn topo_sort() -> Unit{
         }
         Tuple(sol_elements)
       }
-      Array(ty) => { ty.get_dsu_father().sol_typ }
+      Array(ty) => { Array(ty.get_dsu_father().sol_typ) }
     }
     
     for fat in node.father {
@@ -308,19 +304,7 @@ fn topo_sort() -> Unit{
 }
 
 pub fn typing(e : Syntax) -> Syntax {
-  // TODO: init, reset node_list and extenv
-  loop e {
-    Let((f, t), _, rest) => {
-      extenv[f] = type2inf(t)
-      continue rest
-    }
-    LetRec({ name: (f, t), .. }, rest) => {
-      extenv[f] = type2inf(t)
-      continue rest
-    }
-    _ => break
-  }
-  ignore(infer(@immut/hashmap.new(), e, is_top = true))
+  ignore(infer(@immut/hashmap.new(), e))
   topo_sort()
   e
 }
