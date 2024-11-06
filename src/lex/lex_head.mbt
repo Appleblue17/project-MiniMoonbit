@@ -51,8 +51,7 @@ fn or[Value](self : Lexer[Value], parser2 : Lexer[Value]) -> Lexer[Value] {
 // many 函数，将解析器重复多次
 fn many[Value: Show](self : Lexer[Value]) -> Lexer[Array[Value]] {
   fn(input) {
-    let cumul
- = []
+    let cumul = []
     let mut rest = input
     loop self.parse(input) {
       None => Some((cumul, rest))
@@ -81,7 +80,7 @@ fn pchar(predicate: (Char) -> Bool) -> Lexer[Char] {
   Lexer(fn(input) {
     if input.length() > 0 && predicate(input[0]) {
       // 返回匹配的字符和剩余的字符串
-      let remaining = input.to_bytes().sub_string(1, input.length()); // 获取剩余部分
+      let remaining = input.to_bytes().sub_string(2, 2*(input.length()-1)); // 获取剩余部分
       Some((input[0], remaining))
     } else {
       None
@@ -90,11 +89,11 @@ fn pchar(predicate: (Char) -> Bool) -> Lexer[Char] {
 }
 
 // pstring 函数，解析字符串
-fn pstring(predicate: (String) -> Bool) -> Lexer[String] {
+fn pstring(len:Int,predicate: (String) -> Bool) -> Lexer[String] {
   Lexer(fn(input) {
     if input.length() > 0 && predicate(input.to_string()) {
       // 返回匹配的字符和剩余的字符串
-      let remaining = input.to_bytes().sub_string(1, input.length()); // 获取剩余部分
+      let remaining = input.to_bytes().sub_string(2*len, (input.length()-len)*2); // 获取剩余部分
       Some((input.to_string(), remaining))
     } else {
       None

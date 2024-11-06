@@ -14,14 +14,13 @@ let whitespace : Lexer[Token] = pchar(fn{
     _ => Err(ParseErr::Message("Unknown whitespace"))})
 
 // 解析注释
-let comment: Lexer[Token] = 
-    pstring(fn { str => str.starts_with("//") })
-    .map(fn { _ => Ok(Token::COMMENT) })
+// let comment: Lexer[Token] = 
+//     pstring(2,fn { str => str.starts_with("//") })
+//     .map(fn { _ => Ok(Token::COMMENT) })
 
 // 组合出的跳过空白和注释的解析器
 let skip_whitespace_and_comments: Lexer[Unit] =
     whitespace.many()
-    .or(comment.many())
     .map(fn { (_) => Ok(()) });  // 跳过空白符和注释，Unit 类型表示没有返回值
 
 // 解析符号
@@ -38,7 +37,7 @@ let symbol1: Lexer[Token] = pchar(fn{
  })
 
 // 解析其他符号
-let symbol2: Lexer[Token] = pstring(fn{
+let symbol2: Lexer[Token] = pstring(2,fn{
   "==" | "<=" | "->" => true
   _ => false
 }).map(fn{
@@ -49,38 +48,66 @@ let symbol2: Lexer[Token] = pstring(fn{
 
 
 // 解析关键字
-let keyword: Lexer[Token] = 
-    pstring(fn { ch => ch.to_string() == "true" ||
-     ch.to_string() == "false" ||
-     ch.to_string() == "Unit" ||
-     ch.to_string() == "Bool" ||
-     ch.to_string() == "Int" ||
-     ch.to_string() == "Double" ||
-     ch.to_string() == "Array" ||
-     ch.to_string() == "if" ||
-     ch.to_string() == "else" ||
-     ch.to_string() == "fn" ||
-     ch.to_string() == "let" ||
-     ch.to_string() == "make" ||
-     ch.to_string() == "not"
+let keyword2: Lexer[Token] = 
+    pstring(2,fn { ch => 
+    ch.starts_with("fn") ||
+    ch.starts_with("if")
     }) // 添加所有关键字
     .map(fn { 
-            "true" => Ok(Token::TRUE)
-            "false" => Ok(Token::FALSE)
-            "Unit" => Ok(Token::UNIT)
-            "Bool" => Ok(Token::BOOL)
-            "Int" => Ok(Token::INT)
-            "Double" => Ok(Token::DOUBLE)
-            "Array" => Ok(Token::ARRAY)
             "if" => Ok(Token::IF)
-            "else" => Ok(Token::ELSE)
             "fn" => Ok(Token::FN)
+            _ => Err(ParseErr::Message(""))
+})
+
+let keyword3: Lexer[Token] = 
+    pstring(3,fn { ch => 
+    ch.starts_with("Int") ||
+    ch.starts_with("let") ||
+    ch.starts_with("not")
+    }) // 添加所有关键字
+    .map(fn { 
+            "Int" => Ok(Token::INT)
             "let" => Ok(Token::LET)
-            "make" => Ok(Token::MAKE)
             "not" => Ok(Token::NOT)
             _ => Err(ParseErr::Message(""))
 })
 
+let keyword4: Lexer[Token] = 
+    pstring(4,fn { ch => 
+    ch.starts_with("true") ||
+    ch.starts_with("Unit") ||
+    ch.starts_with("Bool") ||
+    ch.starts_with("else") ||
+    ch.starts_with("make")
+    }) // 添加所有关键字
+    .map(fn { 
+            "true" => Ok(Token::TRUE)
+            "Unit" => Ok(Token::UNIT)
+            "Bool" => Ok(Token::BOOL)
+            "else" => Ok(Token::ELSE)
+            "make" => Ok(Token::MAKE)
+            _ => Err(ParseErr::Message(""))
+})
+
+let keyword5: Lexer[Token] = 
+    pstring(5,fn { ch => 
+    ch.starts_with("false") ||
+    ch.starts_with("Array")
+    }) // 添加所有关键字
+    .map(fn { 
+            "false" => Ok(Token::FALSE)
+            "Array" => Ok(Token::ARRAY)
+            _ => Err(ParseErr::Message(""))
+})
+
+let keyword6: Lexer[Token] = 
+    pstring(6,fn { ch => 
+    ch.starts_with("Double")
+    }) // 添加所有关键字
+    .map(fn { 
+            "Double" => Ok(Token::DOUBLE)
+            _ => Err(ParseErr::Message(""))
+})
 
 // 解析数字
 let zero: Lexer[Int] =
@@ -100,7 +127,7 @@ let value: Lexer[Token] =
 
 
 // 解析含_的解析器
-let identifier: Lexer[Token] = pstring(fn { 
+let identifier: Lexer[Token] = pstring(1,fn { 
     (ch) => (is_letter(ch[0]) || ch[0] == '_') && 
              all(ch.to_array(),fn(c) { is_letter(c) || is_digit(c) || c == '_' }) 
 }).and(skip_whitespace_and_comments)  

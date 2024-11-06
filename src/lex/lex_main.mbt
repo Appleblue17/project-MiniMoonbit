@@ -1,7 +1,7 @@
 // 最终组合的词法分析器
 let tokens: Lexer[Array[Token]] =
  value
- .or(symbol1).or(keyword).or(symbol2).or(comment).or(identifier).and(skip_whitespace_and_comments)
+ .or(symbol1).or(keyword2).or(keyword3).or(keyword4).or(keyword5).or(keyword6).or(symbol2).or(identifier).and(whitespace.many())
 .map(fn { (symbols, _) => 
 Ok(symbols) }) // 忽略空格
 .many()
