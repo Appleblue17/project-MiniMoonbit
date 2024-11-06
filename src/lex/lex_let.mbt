@@ -37,11 +37,13 @@ let symbol1: Lexer[Token] = pchar(fn{
  })
 
 // 解析其他符号
-let symbol2: Lexer[Token] = pstring(2,fn{
-  "==" | "<=" | "->" => true
-  _ => false
+let symbol2: Lexer[Token] = 
+    pstring(2,fn{ ch =>
+    ch.starts_with("==") ||
+    ch.starts_with("=>") ||
+    ch.starts_with("->")
 }).map(fn{
-  "==" => Ok(Token::EQ); "<=" => Ok(Token::LE); "->" => Ok(Token::ARROW)
+  "==" => Ok(Token::EQ); "=>" => Ok(Token::LE); "->" => Ok(Token::ARROW)
   _ => Err(ParseErr::Message(""))
 
 })
@@ -119,17 +121,18 @@ pchar(fn{ ch => ch >= '0' && ch <= '9' }).map(fn { ch => Ok(ch.to_int() - '0'.to
 
 // 转换成整数
 let value: Lexer[Token] = 
-    zero
-    .or(one_to_nine.and(zero_to_nine.many())
+    zero.or(one_to_nine.and(zero_to_nine.many())
     .map(fn{(i, ls) => fold_left_list(i, ls, fn{acc, j => acc * 10 + j })
     }))
     .map(fn{ value => Ok(Token::NUMBER(value.to_string())) })
 
+let idd: Lexer[Char] =
+    pchar(fn { ch => is_letter(ch) || ch == '_' })
+    .map(fn { ch => Ok(ch) })
 
 // 解析含_的解析器
-let identifier: Lexer[Token] = pstring(1,fn { 
-    (ch) => (is_letter(ch[0]) || ch[0] == '_') && 
-             all(ch.to_array(),fn(c) { is_letter(c) || is_digit(c) || c == '_' }) 
-}).and(skip_whitespace_and_comments)  
-.map(fn { (id,_) => Ok(Token::IDENTIFIER(id)) })
-
+let identifier: Lexer[Token] =
+    idd.many()  // 获取多个标识符
+    .map(fn { ls => adding_string("", to_string_char(ls), fn{ acc, item => acc + item }) })
+    .map(fn { ids => Ok(Token::IDENTIFIER(ids)) })  // 确保这里直接使用 ids
+// let identifier: Lexer[]

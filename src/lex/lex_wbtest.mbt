@@ -1,34 +1,34 @@
 test "int_literal" {
-  let input = "1";
-  let result = value.parse(input);  // 假设 `int_literal` 用于解析整数字面量
+  let input = "00000123 + 5";
+  let result = tokens.parse(input);  // 假设 `int_literal` 用于解析整数字面量
   
   inspect!(result, content= 
-    #|Some((NUMBER("1"), "\x00"))
+    #|Some((, ""))
   );
 }
-test "keyword" {
-  let input = "Int";
-  let result = keyword.parse(input);
+test "token" {
+  let input = "fgddfsd";
+  let result = identifier.parse(input);
   
   inspect!(result, content= 
-    #|Some((INT, ""))
+    #|Some((, ""))
   );
 }
 test "operator" {
-  let input = "+ 1";
+  let input = "Int Double => 1 ";
   let result = tokens.parse(input);  // 假设 `symbol1` 用于解析符号
   
   inspect!(result, content= 
-    #|Some((ADD, ""))
+    #|Some((, ""))
   );
 }
 
 test "keyword" {
-  let input = "if";
+  let input = "Int fib == 1";
   let result = tokens.parse(input);  // 假设 `keyword` 用于解析关键字
   
   inspect!(result, content= 
-    #|Some(([IF], ""))
+    #|Some(( ""))
   );
 }
 // test "comment" {
@@ -40,11 +40,11 @@ test "keyword" {
 //   );
 // }
 test "combination" {
-  let input = "Int x = 1";
+  let input = "Int t";
     let result = tokens.parse(input);  // 假设 `tokens` 用于解析多个 Token
 
     inspect!(result, content=
-        #|Some(([INT], Identifier("x"), EQ, NUMBER("1"), ""))
+        #|Some(([INT], Identifier("x"), [EQ], NUMBER("1"), ""))
         );
 }
 

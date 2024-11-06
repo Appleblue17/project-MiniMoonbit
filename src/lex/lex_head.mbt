@@ -65,15 +65,15 @@ fn many[Value: Show](self : Lexer[Value]) -> Lexer[Array[Value]] {
 }
 
 // optional 函数，将解析器变为可选的
-fn optional[V](self : Lexer[V]) -> Lexer[Array[V]] {
-  fn {
-    input =>
-      match self.parse(input) {
-        None => Some( ([], input) )
-        Some((v, rest)) => Some( ([v], rest) )
-      }
-  }
-}
+// fn optional[V](self : Lexer[V]) -> Lexer[Array[V]] {
+//   fn {
+//     input =>
+//       match self.parse(input) {
+//         None => Some( ([], input) )
+//         Some((v, rest)) => Some( ([v], rest) )
+//       }
+//   }
+// }
 
 // pchar 函数，解析单个字符
 fn pchar(predicate: (Char) -> Bool) -> Lexer[Char] {
@@ -89,17 +89,23 @@ fn pchar(predicate: (Char) -> Bool) -> Lexer[Char] {
 }
 
 // pstring 函数，解析字符串
-fn pstring(len:Int,predicate: (String) -> Bool) -> Lexer[String] {
+fn pstring(len:Int, predicate: (String) -> Bool) -> Lexer[String] {
   Lexer(fn(input) {
     if input.length() > 0 && predicate(input.to_string()) {
       // 返回匹配的字符和剩余的字符串
       let remaining = input.to_bytes().sub_string(2*len, (input.length()-len)*2); // 获取剩余部分
-      Some((input.to_string(), remaining))
+      let input_in = input.to_bytes().sub_string(0, 2*len)
+      Some((input_in.to_string(), remaining))
     } else {
       None
     }
   })
 }
+
+// fn rest(ch: String, id: String) -> String {
+//   let result = ch.to_bytes().sub_string(2*id.length(), 2*(ch.length()-1));
+//   result
+// }
 
 // is_letter 函数，判断是否是字母
 fn is_letter(ch: Char) -> Bool {
@@ -121,7 +127,6 @@ fn all[Value](array: Array[Value], pred: (Value) -> Bool) -> Bool {
     return true; // 如果所有元素都满足条件，返回 true
 }
 
-
 fn fold_left_list(init: Int, list: Array[Int], f: (Int, Int) -> Int) -> Result[Int, ParseErr] {
   let mut result = init;
    for item in list {
@@ -130,6 +135,23 @@ fn fold_left_list(init: Int, list: Array[Int], f: (Int, Int) -> Int) -> Result[I
     // 返回成功的结果
     Ok(result)
 }
+
+fn to_string_char(ch: Array[Char]) -> Array[String] {
+  let result = []
+  for item in ch {
+    result.push(item.to_string())
+  }
+  result
+}
+
+fn adding_string(init: String, list: Array[String], f: (String, String) -> String) -> Result[String, ParseErr] {
+  let mut result = init;
+  for item in list {
+        result = f(result, item);  // 将当前结果和列表元素传入函数
+  }
+  Ok(result)  // 返回连接后的结果
+}
+
 // fn is_valid_identifier_chars(chars: Array[Char]) -> Bool {
 //     for ch in chars {
 //         if not(is_letter(ch) || is_digit(ch) || ch == '_') {
