@@ -8,7 +8,6 @@ type Lexer[V] (String) -> Option[(V, String)]
 // }
 
 
-
 enum ParseErr {
   Message(String) // 可以包含错误消息
 }

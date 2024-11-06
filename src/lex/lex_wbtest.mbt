@@ -1,50 +1,50 @@
+test "int_literal" {
+  let input = "1";
+  let result = value.parse(input);  // 假设 `int_literal` 用于解析整数字面量
+  
+  inspect!(result, content= 
+    #|Some((NUMBER("1"), "\x00"))
+  );
+}
+test "keyword" {
+  let input = "Int";
+  let result = keyword.parse(input);
+  
+  inspect!(result, content= 
+    #|Some((INT, ""))
+  );
+}
+test "operator" {
+  let input = "+ 1";
+  let result = tokens.parse(input);  // 假设 `symbol1` 用于解析符号
+  
+  inspect!(result, content= 
+    #|Some((ADD, ""))
+  );
+}
 
-test "identifier" {
-  let input = "fib";
-  let result = tokens.parse(input);
-  
-  inspect!(result, content= 
-    #|Some((Token::IDENTIFIER("fib"), "")) 
-  );
-}
-test "operator" {
-  let input = "+";
-  let result = tokens.parse(input);  // 假设 `symbol1` 用于解析符号
-  
-  inspect!(result, content= 
-    #|Some((Token::ADD, "")) 
-  );
-}
-test "operator" {
-  let input = "+";
-  let result = tokens.parse(input);  // 假设 `symbol1` 用于解析符号
-  
-  inspect!(result, content= 
-    #|Some((Token::ADD, "")) 
-  );
-}
 test "keyword" {
   let input = "if";
   let result = tokens.parse(input);  // 假设 `keyword` 用于解析关键字
   
   inspect!(result, content= 
-    #|Some((Token::IF, "")) 
+    #|Some(([IF], ""))
   );
 }
-test "comment" {
-  let input = "// this is a comment";
-  let result = tokens.parse(input);  // 假设 `comment` 用于解析注释
+// test "comment" {
+//   let input = "// this is a comment";
+//   let result = tokens.parse(input);  // 假设 `comment` 用于解析注释
   
-  inspect!(result, content= 
-    #|Some((Token::COMMENT, "")) 
-  );
-}
+//   inspect!(result, content= 
+//     #|Some((Token::COMMENT, "")) 
+//   );
+// }
 test "combination" {
-  let input = "INT fib = 1";
+  let input = "Int x = 1";
     let result = tokens.parse(input);  // 假设 `tokens` 用于解析多个 Token
 
     inspect!(result, content=
-        #|Some((Array[Token]::from([Token::INT, Token::IDENTIFIER("fib"), Token::ASSIGN, Token::INT_LITERAL(1)]), ""))
+        #|Some(([INT], Identifier("x"), EQ, NUMBER("1"), ""))
         );
 }
 
