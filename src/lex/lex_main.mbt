@@ -6,7 +6,7 @@ let tokens: Lexer[Array[Token]] =
   .or(identifier)  
   .and(whitespace.many())
   .map(fn { (symbols, _) => Ok(symbols) })
-  .many();
+  .many().map(fn { tokens => Ok(add_unit(tokens)) }) // 忽略空格
 
 // let tokens: Lexer[Array[Token]] =
 //     value.or(symbol1).and(whitespace.many())

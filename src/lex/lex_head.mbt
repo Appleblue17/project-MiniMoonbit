@@ -1,5 +1,4 @@
 typealias Token = @types.TOKEN
-
 fn parse[V](self : Lexer[V], str : String) -> Option[(V, String)] {
   (self._)(str)
 }
@@ -92,6 +91,18 @@ fn pchar(predicate: (Char) -> Bool) -> Lexer[Char] {
 // pstring 函数，解析字符串
 fn pstring(len:Int, predicate: (String) -> Bool) -> Lexer[String] {
   Lexer(fn(input) {
+    if input.length() > 0 && predicate(input.to_string()) && next_non_identifier(input) == len {
+      // 返回匹配的字符和剩余的字符串
+      let remaining = input.to_bytes().sub_string(2*len, (input.length()-len)*2); // 获取剩余部分
+      let input_in = input.to_bytes().sub_string(0, 2*len)
+      Some((input_in.to_string(), remaining))
+    } else {
+      None
+    }
+  })
+}
+fn pstring2(len:Int, predicate: (String) -> Bool) -> Lexer[String] {
+  Lexer(fn(input) {
     if input.length() > 0 && predicate(input.to_string()) {
       // 返回匹配的字符和剩余的字符串
       let remaining = input.to_bytes().sub_string(2*len, (input.length()-len)*2); // 获取剩余部分
@@ -156,65 +167,22 @@ fn adding_string(init: String, list: Array[String], f: (String, String) -> Strin
   Ok(result)  // 返回连接后的结果
 }
 
+// 在Lexer[Array[Token]]的最后添加Token::Unit
+fn add_unit(tokens: Array[Token]) -> Array[Token] {
+  let result = tokens;
+  result.push(Token::UNIT);
+  result
+}
 
-// fn is_valid_identifier_chars(chars: Array[Char]) -> Bool {
-//     for ch in chars {
-//         if not(is_letter(ch) || is_digit(ch) || ch == '_') {
-//             return false // 如果有不符合的字符，返回 false
-//         }
-//     }
-//     return true // 所有字符都符合条件，返回 true
-// }
-
-// fn many[Value](self: Lexer[Value]) -> Lexer[Array[Value]] {
-//   Lexer(fn(input) {
-//     let mut rest = input
-//     let cumul: Array[Value] = []  // 使用数组来累积解析结果
-//     while true {
-//       match self.parse(rest) {
-//         None => break  // 如果解析失败，跳出循环
-//         Some((value, new_rest)) => {  // 如果解析成功
-//           rest = new_rest  // 更新剩余部分
-//           cumul.push(value)  // 将解析到的值添加到数组中
-//         }
-//       }
-//     }
-//     Some((cumul, rest))  // 直接返回累积的数组
-//   })
-// }
-
-// 初始化词法分析器
-
-
-// 递归实现 `rest`，直接处理数组的每个元素
-
-
-// fn map[I, O](self : Lexer[I], f : (I) -> O) -> Lexer[O] {
-//  Lexer(fn(input) {
-//   // ⾮空为Some(v)中的v，空值直接返回
-//  let ((value, rest)) = self.parse(input)?
-//  Some((f(value), rest))
-//  }) }
-
-
-// fn rest(array: Array[Char]) -> Array[Char] {
-//   // 基本情况：如果数组为空或只有一个元素，返回空数组
-//   if array.length() <= 1 {
-//     return "".to_array()
-//   }
-//   ignore(array.remove(0))
-//   array
-// }
-
-
-// fn pchar(predicate: (Char) -> Bool) -> Lexer[Char] {
-//   Lexer(fn(input) {
-//     if input.length() > 0 && predicate(input[0]) {
-//       // 返回匹配的字符和剩余的字符串
-//       let remaining = rest(input.to_array());  // 使用切片来获取剩余部分
-//       Some((input[0], remaining.to_string()))  // 确保返回剩余的字符串
-//     } else {
-//       None
-//     }
-//   })
-// }
+// 获取下一个非identifier的长度
+fn next_non_identifier(input: String) -> Int {
+  let mut i = 0;
+  while i < input.length() {
+    if input[i] == '_' || is_letter(input[i]) {
+      i = i + 1
+    } else {
+      break;
+    }
+  }
+  return i;
+}

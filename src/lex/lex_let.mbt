@@ -38,7 +38,7 @@ let symbol1: Lexer[Token] = pchar(fn{
 
 // 解析其他符号
 let symbol2: Lexer[Token] = 
-    pstring(2,fn{ ch =>
+    pstring2(2,fn{ ch =>
     ch.starts_with("==") ||
     ch.starts_with("=>") ||
     ch.starts_with("->")
