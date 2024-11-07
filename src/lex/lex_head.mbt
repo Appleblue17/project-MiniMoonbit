@@ -48,6 +48,7 @@ fn or[Value](self : Lexer[Value], parser2 : Lexer[Value]) -> Lexer[Value] {
   Some(_) as result => result
   } }) }
 
+
 // many 函数，将解析器重复多次
 fn many[Value: Show](self : Lexer[Value]) -> Lexer[Array[Value]] {
   fn(input) {
@@ -151,6 +152,7 @@ fn adding_string(init: String, list: Array[String], f: (String, String) -> Strin
   }
   Ok(result)  // 返回连接后的结果
 }
+
 
 // fn is_valid_identifier_chars(chars: Array[Char]) -> Bool {
 //     for ch in chars {

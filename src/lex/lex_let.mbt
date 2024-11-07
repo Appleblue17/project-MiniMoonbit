@@ -128,11 +128,19 @@ let value: Lexer[Token] =
 
 let idd: Lexer[Char] =
     pchar(fn { ch => is_letter(ch) || ch == '_' })
-    .map(fn { ch => Ok(ch) })
+    .map(fn { ch => Ok(ch)
+    _ => Err(ParseErr::Message("Unknown identifier"))
+     })
 
 // 解析含_的解析器
 let identifier: Lexer[Token] =
     idd.many()  // 获取多个标识符
-    .map(fn { ls => adding_string("", to_string_char(ls), fn{ acc, item => acc + item }) })
+    .map(fn {
+         ls => adding_string( "" , to_string_char(ls), fn{ acc, item => acc + item }) 
+         })
     .map(fn { ids => Ok(Token::IDENTIFIER(ids)) })  // 确保这里直接使用 ids
 // let identifier: Lexer[]
+
+let keyword: Lexer[Token] = 
+    keyword6.or(keyword5).or(keyword4).or(keyword3).or(keyword2)
+    .map(fn { token => Ok(token) })

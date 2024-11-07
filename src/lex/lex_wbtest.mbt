@@ -1,5 +1,5 @@
 test "int_literal" {
-  let input = "00000123 + 5";
+  let input = "Int Double == 1+()";
   let result = tokens.parse(input);  // 假设 `int_literal` 用于解析整数字面量
   
   inspect!(result, content= 
@@ -7,7 +7,7 @@ test "int_literal" {
   );
 }
 test "token" {
-  let input = "fgddfsd";
+  let input = "wr gyt";
   let result = identifier.parse(input);
   
   inspect!(result, content= 
@@ -15,8 +15,8 @@ test "token" {
   );
 }
 test "operator" {
-  let input = "Int Double => 1 ";
-  let result = tokens.parse(input);  // 假设 `symbol1` 用于解析符号
+  let input = "54 545 ";
+  let result = value.or(whitespace).many().parse(input);  // 假设 `symbol1` 用于解析符号
   
   inspect!(result, content= 
     #|Some((, ""))
