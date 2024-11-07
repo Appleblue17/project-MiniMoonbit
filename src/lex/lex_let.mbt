@@ -40,10 +40,10 @@ let symbol1: Lexer[Token] = pchar(fn{
 let symbol2: Lexer[Token] = 
     pstring2(2,fn{ ch =>
     ch.starts_with("==") ||
-    ch.starts_with("=>") ||
+    ch.starts_with("<=") ||
     ch.starts_with("->")
 }).map(fn{
-  "==" => Ok(Token::EQ); "=>" => Ok(Token::LE); "->" => Ok(Token::ARROW)
+  "==" => Ok(Token::EQ); "<=" => Ok(Token::LE); "->" => Ok(Token::ARROW)
   _ => Err(ParseErr::Message(""))
 
 })
