@@ -145,6 +145,9 @@ fn to_string_char(ch: Array[Char]) -> Array[String] {
   result
 }
 
+fn to_string_char_mini(ch: Char) -> String {
+  ch.to_string()
+}
 fn adding_string(init: String, list: Array[String], f: (String, String) -> String) -> Result[String, ParseErr] {
   let mut result = init;
   for item in list {

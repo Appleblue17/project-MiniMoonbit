@@ -134,9 +134,9 @@ let idd: Lexer[Char] =
 
 // 解析含_的解析器
 let identifier: Lexer[Token] =
-    idd.many()  // 获取多个标识符
+    idd.and(idd.many()) // 获取多个标识符
     .map(fn {
-         ls => adding_string( "" , to_string_char(ls), fn{ acc, item => acc + item }) 
+         (i, ls) => adding_string( to_string_char_mini(i) , to_string_char(ls), fn{ acc, item => acc + item }) 
          })
     .map(fn { ids => Ok(Token::IDENTIFIER(ids)) })  // 确保这里直接使用 ids
 // let identifier: Lexer[]

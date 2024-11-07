@@ -3,7 +3,7 @@ let tokens: Lexer[Array[Token]] =
    keyword
   .or(symbol2).or(symbol1)// 确保 identifier 在最后，以便它不会与关键字冲突
   .or(value)
-  // .or(identifier)  
+  .or(identifier)  
   .and(whitespace.many())
   .map(fn { (symbols, _) => Ok(symbols) })
   .many();
