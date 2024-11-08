@@ -33,7 +33,7 @@ fn unify(t1: InfType, t2: InfType) -> Unit {
         }
         (Tuple(list1), Tuple(list2)) => {
           let length = list1.length();
-          guard(list2.length() != length) else { 
+          guard(list2.length() == length) else { 
             @util.die("Type error: Tuple element length not match.")
           }
           for i in 0 ..< length { unify(list1[i],list2[i]) }
