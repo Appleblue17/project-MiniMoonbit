@@ -13,15 +13,23 @@ let whitespace : Lexer[Token] = pchar(fn{
     '\n' => Ok(Token::WS) 
     _ => Err(ParseErr::Message("Unknown whitespace"))})
 
+// let icc: Lexer[String] = pstring(2,fn{ 
+//     ch => ch.starts_with("//") 
+//     }) // 匹配注释
+//     .map(fn{ _ => Ok(ch) })
+
 // 解析注释
 // let comment: Lexer[Token] = 
-//     pstring(2,fn { str => str.starts_with("//") })
-//     .map(fn { _ => Ok(Token::COMMENT) })
+//     icc.and(icc.many()) // 获取多个标识符
+//     .map(fn {
+//          (i, ls) => adding_string( to_string_char_mini(i) , to_string_char(ls), fn{ acc, item => acc + item }) 
+//          })
+//     .map(fn { ids => Ok(Token::IDENTIFIER(ids)) })
 
 // 组合出的跳过空白和注释的解析器
-let skip_whitespace_and_comments: Lexer[Unit] =
-    whitespace.many()
-    .map(fn { (_) => Ok(()) });  // 跳过空白符和注释，Unit 类型表示没有返回值
+// let skip_whitespace_and_comments: Lexer[Unit] =
+//     whitespace.many()
+//     .map(fn { (_) => Ok(()) });  // 跳过空白符和注释，Unit 类型表示没有返回值
 
 // 解析符号
 let symbol1: Lexer[Token] = pchar(fn{
@@ -35,6 +43,7 @@ let symbol1: Lexer[Token] = pchar(fn{
   ':' => Ok(Token::COLON); '.' => Ok(Token::DOT)
   _ => Err(ParseErr::Message("Unknown symbol"))
  })
+
 
 // 解析其他符号
 let symbol2: Lexer[Token] = 
@@ -129,12 +138,19 @@ let value: Lexer[Token] =
 let idd: Lexer[Char] =
     pchar(fn { ch => is_letter(ch) || ch == '_' })
     .map(fn { ch => Ok(ch)
-    _ => Err(ParseErr::Message("Unknown identifier"))
+    // _ => Err(ParseErr::Message("Unknown identifier"))
+     })
+
+
+let idd2: Lexer[Char] =
+    pchar(fn { ch => is_letter(ch) || ch == '_' || is_digit(ch) })
+    .map(fn { ch => Ok(ch)
+    // _ => Err(ParseErr::Message("Unknown identifier"))
      })
 
 // 解析含_的解析器
 let identifier: Lexer[Token] =
-    idd.and(idd.many()) // 获取多个标识符
+    idd.and(idd2.many()) // 获取多个标识符
     .map(fn {
          (i, ls) => adding_string( to_string_char_mini(i) , to_string_char(ls), fn{ acc, item => acc + item }) 
          })

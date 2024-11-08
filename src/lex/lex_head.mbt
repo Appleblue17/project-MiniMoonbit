@@ -178,7 +178,7 @@ fn add_unit(tokens: Array[Token]) -> Array[Token] {
 fn next_non_identifier(input: String) -> Int {
   let mut i = 0;
   while i < input.length() {
-    if input[i] == '_' || is_letter(input[i]) {
+    if input[i] == '_' || is_letter(input[i]) || is_digit(input[i]) {
       i = i + 1
     } else {
       break;
@@ -186,3 +186,16 @@ fn next_non_identifier(input: String) -> Int {
   }
   return i;
 }
+
+// 发现换行符，注释结束
+// fn find_newline(input: String) -> Int {
+//   let mut i = 0;
+//   while i < input.length() {
+//     if input[i] == '\n' {
+//       break;
+//     } else {
+//       i = i + 1;
+//     }
+//   }
+//   return i;
+// }

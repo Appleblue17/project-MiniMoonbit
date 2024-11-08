@@ -4,9 +4,9 @@ let tokens: Lexer[Array[Token]] =
   .or(symbol2).or(symbol1)// 确保 identifier 在最后，以便它不会与关键字冲突
   .or(value)
   .or(identifier)  
-  .and(whitespace.many())
+  .and(whitespace.many()) // 忽略空格和注释
   .map(fn { (symbols, _) => Ok(symbols) })
-  .many().map(fn { tokens => Ok(add_unit(tokens)) }) // 忽略空格
+  .many().map(fn { tokens => Ok(add_unit(tokens)) }) // 在最后添加Token::Unit
 
 pub fn lex(src: String) -> Array[Token] {
   let ret = tokens.parse(src)
@@ -30,6 +30,7 @@ pub fn pretty_print(ary: Array[Token]) -> Unit{
 //     .many()
 // pub fn (tokens: ArrayView[Token]) -> Syntax {
 //   let result = top_level(tokens)
+
 // Type aliases
 
 // Traits
