@@ -194,7 +194,7 @@ fn ast_to_knf(ctx : LocalEnv, syntax : Syntax) -> Knf {
       new_ctx = new_ctx.add(str, name)
       let body_knf = ast_to_knf(new_ctx, body)
       
-      let ctx_with_f = new_ctx.add(str, name)
+      let ctx_with_f = ctx.add(str, name)
       LetRec( { name, ty, args: name_and_types, 
           body: body_knf }, ast_to_knf(ctx_with_f, rest) )
     }
