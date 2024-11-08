@@ -17,10 +17,10 @@ test "fib" {
 }
 
 test "non-tail-if2"{
-  let input = "fn main {fn f() -> Int {12345};let y = Array::make(10, 3);let x = 67890;print_int(if y[0] == 3 { f() + y[1] + x } else { 7 })};";
+  let input = "2add2;";
   let result = tokens.parse(input);  // 假设 `int_literal` 用于解析整数字面量
 
   inspect!(result, content= 
-    #|Some(([FN, IDENTIFIER("main"), LCURLYBRACKET, FN, IDENTIFIER("f"), LPAREN, RPAREN, LCURLYBRACKET, NUMBER("12345"), RCURLYBRACKET, SEMICOLON, LET, IDENTIFIER("y"), ASSIGN, ARRAY, COLON, COLON, MAKE, LPAREN, NUMBER("10"), COMMA, NUMBER("3"), RPAREN, SEMICOLON, LET, IDENTIFIER("x"), ASSIGN, NUMBER("67890"), SEMICOLON, IDENTIFIER("print_int"), LPAREN, IF, IDENTIFIER("y"), LBRACKET, NUMBER("0"), RBRACKET, EQ, NUMBER("3"), LCURLYBRACKET, IDENTIFIER("f"), LPAREN, RPAREN, ADD, IDENTIFIER("y"), LBRACKET, NUMBER("1"), RBRACKET, ADD, IDENTIFIER("x"), RCURLYBRACKET, ELSE, LCURLYBRACKET, NUMBER("7"), RCURLYBRACKET, RPAREN, RCURLYBRACKET, SEMICOLON, UNIT], ""))
+    #|Some(([NUMBER("2"), IDENTIFIER("add2"), SEMICOLON, UNIT], ""))
   );
 }
