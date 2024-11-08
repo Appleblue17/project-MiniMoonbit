@@ -31,7 +31,7 @@ pub enum Expr {
   MakeTuple(Array[Name])
   LetTuple(Array[(Name, LowType)], Name, Expr)
   ArrayGet(Name, Name)
-  ArrayPut(Name, Name, Name)
+  ArrayPut(Name, Name, Name, Expr)
   ExternalArray(Label) // not used
 } derive(Show)
 

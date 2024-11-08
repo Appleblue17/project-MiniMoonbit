@@ -28,7 +28,7 @@ pub enum Knf {
   Tuple(Array[Name])
   LetTuple(Array[(Name, Type)], Name, Knf)
   Get(Name, Name)
-  Put(Name, Name, Name)
+  Put(Name, Name, Name, Knf)
   ExternalArray(Name) // not used
   ExternalFunctionApplication(String, Array[Name])
 } derive(Show, Eq)

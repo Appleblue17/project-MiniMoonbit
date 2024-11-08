@@ -41,6 +41,8 @@ fn unify(t1: InfType, t2: InfType) -> Unit {
         (Array(t1), Array(t2)) => { unify(t1, t2) }
         
         _ => {
+          println(t1.to_string())
+          println(t2.to_string())
           @util.die("Type error: type not match.")
         }
       }
@@ -193,10 +195,14 @@ fn infer(ctx: LocalCtx, e: Syntax) -> InfType {
       unify(expr_ty, new(Tuple(elements_ty), link = e))
       infer(env_with_elements, rest)
     }
-    Put(var, expr, rest) => {
-      let var_ty = infer(ctx, var)
+    Put(arr, idx, expr, rest) => {
+      let arr_ty = infer(ctx, arr)
+      let idx_ty = infer(ctx, idx)
       let expr_ty = infer(ctx, expr)
-      unify(var_ty, expr_ty)
+      
+      let val_ty = new(Array(expr_ty))
+      unify(arr_ty, val_ty)
+      unify(idx_ty, inftype_Int)
       infer(ctx, rest)
     }
   }

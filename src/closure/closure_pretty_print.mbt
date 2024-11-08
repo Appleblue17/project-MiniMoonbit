@@ -119,7 +119,10 @@ fn PrettyClosure::print_one_level(
       }
       logger.write_string("])")
     }
-    ArrayPut(e1, e2, e3) => logger.write_string("ArrayPut \{e1}[\{e2}] = \{e3}")
+    ArrayPut(e1, e2, e3, e4) => {
+      logger.write_string("ArrayPut \{e1}[\{e2}] = \{e3}\n")
+      self.print_one_level(logger, e4)
+    }
     ArrayGet(e1, e2) => logger.write_string("ArrayGet \{e1}[\{e2}]")
     ExternalArray(name) => logger.write_string("ExternalArray(\{name})")
   }

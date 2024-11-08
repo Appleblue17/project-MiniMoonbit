@@ -99,7 +99,7 @@
 //       unify(ty, inftype_Bool)
 //       ty
 //     }
-//     Array(x, num) => {
+//     Array(num, x) => {
 //       let ty = new(Array(infer(ctx, x)))
 //       let num_ty = infer(ctx, num)
 //       unify(num_ty, inftype_Int)
@@ -217,12 +217,15 @@
 //       println("LetTuple expr: \{expr_ty.to_string()}")
 //       infer(env_with_elements, rest)
 //     }
-//     Put(var, expr, rest) => {
-//       let var_ty = infer(ctx, var)
+//     Put(arr, idx, expr, rest) => {
+//       let arr_ty = infer(ctx, arr)
+//       let idx_ty = infer(ctx, idx)
 //       let expr_ty = infer(ctx, expr)
-//       unify(var_ty, expr_ty)
-//       println("Put_var: \{var_ty.to_string()}")
-//       println("Put_expr: \{expr_ty.to_string()}")
+      
+//       let val_ty = new(Array(expr_ty))
+      
+//       unify(arr_ty, val_ty)
+//       unify(idx_ty, inftype_Int)
 //       infer(ctx, rest)
 //     }
 //   }

@@ -61,7 +61,7 @@ pub fn knf_max_counter(knf : Knf) -> Int {
         ),
       )
     Get(x, y) => @math.maximum(x.slot, y.slot)
-    Put(x, y, z) => @math.maximum(x.slot, @math.maximum(y.slot, z.slot))
+    Put(x, y, z, w) => @math.maximum(x.slot, @math.maximum(y.slot, @math.maximum(z.slot, knf_max_counter(w))))
     ExternalFunctionApplication(_, xs) =>
       xs.map(fn(x) { x.slot }).fold(init=0, fn(a, b) { @math.maximum(a, b) })
     ExternalArray(_) => 0

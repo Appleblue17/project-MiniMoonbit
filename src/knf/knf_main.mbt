@@ -246,7 +246,7 @@ fn ast_to_knf(ctx : LocalEnv, syntax : Syntax) -> Knf {
       
     }
     
-    Put(a, b, c) => {
+    Put(a, b, c, rest) => {
       // let a_name = <a> in
       // let b_name = <b> in
       // let c_name = <c> in
@@ -258,7 +258,7 @@ fn ast_to_knf(ctx : LocalEnv, syntax : Syntax) -> Knf {
       Let((a_name, Var({val: None})), ast_to_knf(ctx, a),
         Let((b_name, Var({val: None})), ast_to_knf(ctx, b),
           Let((c_name, Var({val: None})), ast_to_knf(ctx, c),
-            Put(a_name, b_name, c_name)
+            Put(a_name, b_name, c_name, ast_to_knf(ctx, rest))
           )
         )
       )
