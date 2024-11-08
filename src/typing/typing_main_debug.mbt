@@ -34,7 +34,7 @@
 //         }
 //         (Tuple(list1), Tuple(list2)) => {
 //           let length = list1.length();
-//           guard(list2.length() != length) else { 
+//           guard(list2.length() == length) else { 
 //             @util.die("Type error: Tuple element length not match.")
 //           }
 //           for i in 0 ..< length { unify(list1[i],list2[i]) }
@@ -53,7 +53,7 @@
 //   "print_int": new(Fun([inftype_Int], inftype_Unit)),
 //   "read_char": new(Fun([], inftype_Int)),
 //   "print_char": new(Fun([inftype_Int], inftype_Unit)),
-//   "print_newline": new(Fun([], inftype_Unit)),
+//   "print_endline": new(Fun([], inftype_Unit)),
 //   // 数学函数
 //   "int_of_float": new(Fun([inftype_Double], inftype_Int)),
 //   "float_of_int": new(Fun([inftype_Int], inftype_Double)),
