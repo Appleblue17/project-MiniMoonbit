@@ -54,7 +54,7 @@ let extenv : Map[String, InfType] = {
   "print_int": new(Fun([inftype_Int], inftype_Unit)),
   "read_char": new(Fun([], inftype_Int)),
   "print_char": new(Fun([inftype_Int], inftype_Unit)),
-  "print_newline": new(Fun([], inftype_Unit)),
+  "print_endline": new(Fun([], inftype_Unit)),
   // 数学函数
   "int_of_float": new(Fun([inftype_Double], inftype_Int)),
   "float_of_int": new(Fun([inftype_Int], inftype_Double)),
@@ -82,7 +82,10 @@ fn infer(ctx: LocalCtx, e: Syntax) -> InfType {
         None =>{
           match extenv[x] {
             Some(t) => t
-            None => { @util.die("Type error: function/variable not bounded.") }
+            None => { 
+              println(x)
+              @util.die("Type error: function/variable not bounded.") 
+            }
             // For nontop syntax, it's not allowed to use before declaration.
           }
         }
