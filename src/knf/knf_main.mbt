@@ -8,7 +8,7 @@ fn ast_to_knf(ctx : LocalEnv, syntax : Syntax) -> Knf {
     Var(str) => {
       match ctx[str] {
         Some(name) => Var(name)
-        None => { @util.die("KNF error: function/variable not bounded.") }
+        None => { @util.die("KNF error: function/variable \{str} not bounded.") }
       }
     }
     Tuple(elements) => {
@@ -50,6 +50,7 @@ fn ast_to_knf(ctx : LocalEnv, syntax : Syntax) -> Knf {
     Neg(expr, ~kind) => {
       // let expr_name = <expr> in
       // Neg(expr_name)
+      
       let expr_name = env.val.new_name()
       Let((expr_name, Int), ast_to_knf(ctx, expr), 
         match kind {
@@ -198,31 +199,50 @@ fn ast_to_knf(ctx : LocalEnv, syntax : Syntax) -> Knf {
           body: body_knf }, ast_to_knf(ctx_with_f, rest) )
     }
     
-    LetTuple(elements, tuple, rest) => {
+    LetTuple(elements, val, rest) => {
       // let name_x = <x> in
       // let name_y = <y> in
       // let name_z = <z> in
       // ...
       
-      // It's gauranteed that tuple is Tuple(...).
-      match tuple {
-        Tuple(_) => ()
-        _ => @util.die("KNF error: LetTuple must have a tuple as the second argument.")
+      // It's gauranteed that tuple is Tuple(...) or Var.
+      match val {
+        Tuple(exprs) => {
+          let exprs_knf = exprs.map( fn { expr => ast_to_knf(ctx, expr) } )
+          
+          let mut new_ctx = ctx
+          let name_and_elements = Array::new()
+          for i in 0..<elements.length() {
+            name_and_elements.push( (env.val.new_str_name(elements[i].0), exprs_knf[i]) )
+            new_ctx = new_ctx.add(elements[i].0, name_and_elements[i].0)
+          }
+          name_and_elements.fold( init = ast_to_knf(new_ctx, rest),
+            fn { 
+              knf, (name, element) => 
+                Let((name, Var({val: None})), element, knf)
+            } )
+        }
+        Var(str) => {
+          match ctx[str] {
+            Some(name) => {
+              // We do not declare those elements one by one because they are decleared by LetTuple.
+              let mut new_ctx = ctx
+              let element_names = []
+              for i in 0..<elements.length() {
+                let element_str = elements[i].0
+                let element_name = env.val.new_str_name(element_str)
+                new_ctx = new_ctx.add(element_str, element_name)
+                element_names.push( (element_name, elements[i].1) )
+              }
+              LetTuple(element_names, name, ast_to_knf(new_ctx, rest))
+            }
+            None => { @util.die("KNF error: function/variable \{str} not bounded.") }
+          }
+        }
+        _ => {
+          @util.die("KNF error: LetTuple must have a tuple as the second argument.")
+        }
       }
-      let Tuple(exprs) = tuple
-      let exprs_knf = exprs.map( fn { expr => ast_to_knf(ctx, expr) } )
-      
-      let mut new_ctx = ctx
-      let name_and_elements = Array::new()
-      for i in 0..<elements.length() {
-        name_and_elements.push( (env.val.new_str_name(elements[i].0), exprs_knf[i]) )
-        new_ctx = new_ctx.add(elements[i].0, name_and_elements[i].0)
-      }
-      name_and_elements.fold( init = ast_to_knf(new_ctx, rest),
-        fn { 
-          knf, (name, element) => 
-            Let((name, Var({val: None})), element, knf)
-        } )
       
     }
     

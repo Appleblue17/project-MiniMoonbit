@@ -178,7 +178,7 @@ pub fn Syntax::from_json(json : Json) -> Syntax! {
         None => fail!("invalid json: should contain a number as float")
       }
     ["Not", e] => Not(e |> Syntax::from_json!())
-    ["Neg", e] => Neg(e |> Syntax::from_json!(), kind=None)
+    ["Neg", e] => Neg(e |> Syntax::from_json!(), kind=Some(Int))
     ["FNeg", e] => Neg(e |> Syntax::from_json!(), kind=Some(Double))
     ["Add", e1, e2] =>
       Prim(
