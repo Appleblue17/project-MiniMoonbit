@@ -10,3 +10,280 @@ package moonbitlang/minimbt/lex
 
 // Extension Methods
 
+// Imports
+type Lexer[V] (String) -> Option[(V, String)]
+
+// Types
+// struct TokenType {
+//   token_type: Token
+//   token_value: String
+// }
+
+
+
+enum ParseErr {
+  Message(String) // 可以包含错误消息
+}
+typealias Token = @types.TOKEN
+fn parse[V](self : Lexer[V], str : String) -> Option[(V, String)] {
+  (self.0)(str)
+}
+
+fn map[I, O](self : Lexer[I], f : (I) -> Result[O, ParseErr]) -> Lexer[O] {
+  fn {
+    input =>
+      match self.parse(input) {
+        Some((token, rest)) => {
+          match f(token) {
+            Ok(ret) => Some((ret, rest))
+            Err(_) => {
+              // 处理解析错误，比如打印错误消息
+              None // 返回 None 以表示解析失败
+            }
+          }
+        }
+        None => None
+      }
+  }
+}
+
+
+
+fn and[V1, V2](self : Lexer[V1], parser2 : Lexer[V2]) -> Lexer[(V1, V2)] {
+  fn {
+    input =>
+      self
+      .parse(input)
+      .bind(
+        fn {
+          (value, rest) =>
+            parser2
+            .parse(rest)
+            .map(fn { (value2, rest2) => ((value, value2), rest2) })
+        },
+      )
+  }
+}
+
+
+fn or[Value](self : Lexer[Value], parser2 : Lexer[Value]) -> Lexer[Value] {
+  Lexer(fn (input) {
+  match self.parse(input) {
+  None => parser2.parse(input)
+  Some(_) as result => result
+  } }) }
+
+// fn many[Value: Show](self : Lexer[Value]) -> Lexer[Array[Value]] {
+//   fn(input) {
+//     let cumul
+//  = []
+//     let mut rest = input
+//     loop self.parse(input) {
+//       None => Some((cumul, rest))
+//       Some((v, rest_)) => {
+//         cumul.push(v)
+//         rest = rest_
+//         continue self.parse(rest_)
+//       }
+//     }
+//   }
+// }
+fn many[Value](self: Lexer[Value]) -> Lexer[Array[Value]] {
+  Lexer(fn(input) {
+    let mut rest = input
+    let cumul: Array[Value] = []  // 使用数组来累积解析结果
+    while true {
+      match self.parse(rest) {
+        None => break  // 如果解析失败，跳出循环
+        Some((value, new_rest)) => {  // 如果解析成功
+          rest = new_rest  // 更新剩余部分
+          cumul.push(value)  // 将解析到的值添加到数组中
+        }
+      }
+    }
+    Some((cumul, rest))  // 直接返回累积的数组
+  })
+}
+
+fn optional[V](self : Lexer[V]) -> Lexer[Array[V]] {
+  fn {
+    input =>
+      match self.parse(input) {
+        None => Some( ([], input) )
+        Some((v, rest)) => Some( ([v], rest) )
+      }
+  }
+}
+
+// 初始化词法分析器
+fn pchar(predicate: (Char) -> Bool) -> Lexer[Char] {
+  Lexer(fn(input) {
+    if input.length() > 0 && predicate(input[0]) {
+      // 返回匹配的字符和剩余的字符串
+      let remaining = input.to_bytes().sub_string(1, input.length()); // 获取剩余部分
+      Some((input[0], remaining))
+    } else {
+      None
+    }
+  })
+}
+
+
+
+fn pstring(predicate: (String) -> Bool) -> Lexer[String] {
+  Lexer(fn(input) {
+    if input.length() > 0 && predicate(input.to_string()) {
+      // 返回匹配的字符和剩余的字符串
+      let remaining = input.to_bytes().sub_string(1, input.length()); // 获取剩余部分
+      Some((input.to_string(), remaining))
+    } else {
+      None
+    }
+  })
+}
+fn is_letter(ch: Char) -> Bool {
+    ch >= 'a' && ch <= 'z' || ch >= 'A' && ch <= 'Z'
+}
+
+fn is_digit(ch: Char) -> Bool {
+    ch >= '0' && ch <= '9'
+}
+
+// fn is_valid_identifier_chars(chars: Array[Char]) -> Bool {
+//     for ch in chars {
+//         if not(is_letter(ch) || is_digit(ch) || ch == '_') {
+//             return false // 如果有不符合的字符，返回 false
+//         }
+//     }
+//     return true // 所有字符都符合条件，返回 true
+// }
+
+fn to_char(ch: String) -> Array[Char] {
+  return ch.to_array()
+}
+// 词法分析器
+// 将源代码转换为 Token 流，Token 流是一个由 Token 组成的序列，每个 Token 代表一个词法单元。
+// 有限状态自动机，每个状态对应一个函数，函数的输入是源代码字符串，输出是 Token 流。
+
+
+let whitespace : Lexer[Token] = pchar(fn{
+   ' ' | '\t' | '\r' | '\n' => true
+    _ => false
+   }).map(fn{ ' ' => Ok(Token::WS) 
+    '\t' => Ok(Token::WS) 
+    '\r' => Ok(Token::WS) 
+    '\n' => Ok(Token::WS) 
+    _ => Err(ParseErr::Message("Unknown whitespace"))})
+
+let comment: Lexer[Token] = 
+    pstring(fn { str => str.starts_with("//") })
+    .map(fn { _ => Ok(Token::COMMENT) })
+
+
+
+let symbol1: Lexer[Token] = pchar(fn{
+ '+' | '-' | '*' | '/' | '(' | ')' | '=' | '[' | ']' | '{' | '}' | ',' | ';' | ':' | '.' => true
+ _ => false
+ }).map(fn{
+ '+' => Ok(Token::ADD); '-' => Ok(Token::SUB); '*' => Ok(Token::MUL); '/' => Ok(Token::DIV);
+ '=' => Ok(Token::ASSIGN); '(' => Ok(Token::LPAREN); ')' => Ok(Token::RPAREN);
+ '[' => Ok(Token::LBRACKET); ']' => Ok(Token::RBRACKET); '{' => Ok(Token::LCURLYBRACKET);
+  '}' => Ok(Token::RCURLYBRACKET); ',' => Ok(Token::COMMA); ';' => Ok(Token::SEMICOLON);
+  ':' => Ok(Token::COLON); '.' => Ok(Token::DOT)
+  _ => Err(ParseErr::Message("Unknown symbol"))
+ })
+
+let keyword: Lexer[Token] = 
+    pstring(fn { ch => ch.to_string() == "true" ||
+     ch.to_string() == "false" ||
+     ch.to_string() == "Unit" ||
+     ch.to_string() == "Bool" ||
+     ch.to_string() == "Int" ||
+     ch.to_string() == "Double" ||
+     ch.to_string() == "Array" ||
+     ch.to_string() == "if" ||
+     ch.to_string() == "else" ||
+     ch.to_string() == "fn" ||
+     ch.to_string() == "let" ||
+     ch.to_string() == "make" ||
+     ch.to_string() == "not"
+    }) // 添加所有关键字
+    .map(fn { 
+            "true" => Ok(Token::TRUE)
+            "false" => Ok(Token::FALSE)
+            "Unit" => Ok(Token::UNIT)
+            "Bool" => Ok(Token::BOOL)
+            "Int" => Ok(Token::INT)
+            "Double" => Ok(Token::DOUBLE)
+            "Array" => Ok(Token::ARRAY)
+            "if" => Ok(Token::IF)
+            "else" => Ok(Token::ELSE)
+            "fn" => Ok(Token::FN)
+            "let" => Ok(Token::LET)
+            "make" => Ok(Token::MAKE)
+            "not" => Ok(Token::NOT)
+            _ => Err(ParseErr::Message(""))
+})
+
+let symbol2: Lexer[Token] = pstring(fn{
+  "==" | "<=" | "->" => true
+  _ => false
+}).map(fn{
+  "==" => Ok(Token::EQ); "<=" => Ok(Token::LE); "->" => Ok(Token::ARROW)
+  _ => Err(ParseErr::Message("Unknown symbol"))
+
+})
+
+// 数字
+let zero: Lexer[Int] =
+pchar(fn{ ch => ch == '0' }).map(fn{ _ => Ok(0) })
+let one_to_nine: Lexer[Int] =
+pchar(fn{ ch => ch >= '1' && ch <= '9' }).map(fn { ch => Ok(ch.to_int() - '0'.to_int()) })
+let zero_to_nine: Lexer[Int] =
+pchar(fn{ ch => ch >= '0' && ch <= '9' }).map(fn { ch => Ok(ch.to_int() - '0'.to_int()) })
+
+// 转换成整数
+let value: Lexer[Token] = 
+    zero
+    .or(one_to_nine.and(zero_to_nine.many())
+    .map(fn{(i, ls) => fold_left_list(i, ls, fn{acc, j => acc * 10 + j })}))
+    .map(fn{ value => Ok(Token::NUMBER(value.to_string())) })
+
+fn fold_left_list(init: Int, list: Array[Int], f: (Int, Int) -> Int) -> Result[Int, ParseErr] {
+  let mut result = init;
+   for item in list {
+        result = f(result, item); // 将当前结果和列表元素传入函数
+    }
+    // 返回成功的结果
+    Ok(result)
+}
+
+
+// 处理标识符
+let identifier: Lexer[Token] = pstring(fn { 
+    (ch) => (is_letter(ch[0]) || ch[0] == '_') && 
+             all(to_char(ch),fn(c) { is_letter(c) || is_digit(c) || c == '_' }) 
+}).and(skip_whitespace_and_comments)  
+.map(fn { (id,_) => Ok(Token::IDENTIFIER(id)) })
+
+fn all[Value](array: Array[Value], pred: (Value) -> Bool) -> Bool {
+    for item in array {
+        if not(pred(item)) {
+            return false; // 如果有一个元素不满足条件，返回 false
+        }
+    }
+    return true; // 如果所有元素都满足条件，返回 true
+}
+// Types and methods
+// 定义跳过空白符和注释的解析器
+let skip_whitespace_and_comments: Lexer[Unit] =
+    whitespace.many()
+    .or(comment.many())
+    .map(fn { (_) => Ok(()) });  // 跳过空白符和注释，Unit 类型表示没有返回值
+
+pub let tokens: Lexer[Array[Token]] =
+ value
+ .or(symbol1).or(keyword).or(symbol2).or(comment).or(identifier).and(whitespace.many())
+.map(fn { (symbols, _) => 
+Ok(symbols) }) // 忽略空格
+.many()
