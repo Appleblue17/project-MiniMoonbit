@@ -92,6 +92,9 @@ fn CompileStatus::step(self : CompileStatus) -> Bool {
       let lexed = @lex.lex(source_code)
       // println("lex success")
       // println(lexed)
+      
+      @lex.pretty_print(lexed)
+      
       let parsed = @parser.parser(lexed[:])
       self.ast = Some(parsed)
     }

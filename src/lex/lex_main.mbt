@@ -16,6 +16,14 @@ pub fn lex(src: String) -> Array[Token] {
   }
 }
 
+pub fn pretty_print(ary: Array[Token]) -> Unit{
+  println("[")
+  for x in ary {
+    println("  Token::\{x}")
+  }
+  println("]")
+}
+
 // let tokens: Lexer[Array[Token]] =
 //     value.or(symbol1).and(whitespace.many())
 //     .map(fn { (symbols, _) => Ok(symbols) }) // 忽略空格
