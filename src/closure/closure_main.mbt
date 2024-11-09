@@ -177,7 +177,7 @@ test "knf_to_closure basic functionality" {
 
 pub fn knf_program_to_closure(
   prog : Knf,
-  extern_env : Map[String, Type]
+  extern_env : Map[String, Type] // not used
 ) -> Program {
   gloabal_closure.clear()
   let body = knf_to_closure(prog)

@@ -1,11 +1,11 @@
 {
   "import": [
     "moonbitlang/minimbt/closure",
+    "moonbitlang/minimbt/util",
     {
       "path": "moonbitlang/minimbt",
-      "alias": "typing"
+      "alias": "types"
     },
-    "moonbitlang/minimbt/util",
     "lijunchen/unstable_io/env"
   ]
 }
