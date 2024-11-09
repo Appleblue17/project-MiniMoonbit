@@ -33,7 +33,7 @@ fn unify(t1: InfType, t2: InfType) -> Unit {
         }
         (Tuple(list1), Tuple(list2)) => {
           let length = list1.length();
-          guard(list2.length() != length) else { 
+          guard(list2.length() == length) else { 
             @util.die("Type error: Tuple element length not match.")
           }
           for i in 0 ..< length { unify(list1[i],list2[i]) }
@@ -41,6 +41,8 @@ fn unify(t1: InfType, t2: InfType) -> Unit {
         (Array(t1), Array(t2)) => { unify(t1, t2) }
         
         _ => {
+          println(t1.to_string())
+          println(t2.to_string())
           @util.die("Type error: type not match.")
         }
       }
@@ -54,7 +56,7 @@ let extenv : Map[String, InfType] = {
   "print_int": new(Fun([inftype_Int], inftype_Unit)),
   "read_char": new(Fun([], inftype_Int)),
   "print_char": new(Fun([inftype_Int], inftype_Unit)),
-  "print_newline": new(Fun([], inftype_Unit)),
+  "print_endline": new(Fun([], inftype_Unit)),
   // 数学函数
   "int_of_float": new(Fun([inftype_Double], inftype_Int)),
   "float_of_int": new(Fun([inftype_Int], inftype_Double)),
@@ -82,7 +84,10 @@ fn infer(ctx: LocalCtx, e: Syntax) -> InfType {
         None =>{
           match extenv[x] {
             Some(t) => t
-            None => { @util.die("Type error: function/variable not bounded.") }
+            None => { 
+              println(x)
+              @util.die("Type error: function/variable not bounded.") 
+            }
             // For nontop syntax, it's not allowed to use before declaration.
           }
         }
@@ -190,10 +195,14 @@ fn infer(ctx: LocalCtx, e: Syntax) -> InfType {
       unify(expr_ty, new(Tuple(elements_ty), link = e))
       infer(env_with_elements, rest)
     }
-    Put(var, expr, rest) => {
-      let var_ty = infer(ctx, var)
+    Put(arr, idx, expr, rest) => {
+      let arr_ty = infer(ctx, arr)
+      let idx_ty = infer(ctx, idx)
       let expr_ty = infer(ctx, expr)
-      unify(var_ty, expr_ty)
+      
+      let val_ty = new(Array(expr_ty))
+      unify(arr_ty, val_ty)
+      unify(idx_ty, inftype_Int)
       infer(ctx, rest)
     }
   }
