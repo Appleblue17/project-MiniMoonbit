@@ -100,6 +100,13 @@ pub fn Knf::from_json(json : Json) -> Knf! {
       }
       Apply(Name::from_json!(n), rns)
     }
+    ["Tuple", Array(ns)] => {
+      let rns = []
+      for it in ns {
+        rns.push(Name::from_json!(it))
+      }
+      Tuple(rns)
+    }
     ["LetTuple", Array(n_ts), n, k] => {
       let n_ts_res = []
       for it in n_ts {
