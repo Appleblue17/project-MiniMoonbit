@@ -43,6 +43,11 @@ fn get_fv(e: Knf) -> Set{
     }
     Apply(f, args) => union(Set::from_array(args), Set::of([f]))
     Tuple(xs) => Set::from_array(xs)
+    LetTuple(xs, e, rest) => {
+      let mut fv = union(get_fv(rest), Set::of([e]))
+      for x in xs { fv = fv.remove(x.0) }
+      fv
+    }
     Get(x, y) => Set::of([x, y])
     Put(x, y, z, rest) => union(Set::of([x, y, z]), get_fv(rest))
     ExternalFunctionApplication(_, args) => Set::from_array(args)
