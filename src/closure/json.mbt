@@ -1,8 +1,8 @@
 pub fn Expr::to_json(self : Expr) -> Json {
   match self {
     Expr::Unit => ["Unit"]
-    Expr::Bool(true) => ["Bool", true]
-    Expr::Bool(false) => ["Bool", false]
+    Expr::Bool(true) => ["Bool", True]
+    Expr::Bool(false) => ["Bool", False]
     Expr::Int(i) => ["Int", Number(i.to_double())]
     Expr::Double(d) => ["Double", Number(d)]
     Expr::Not(n) => ["Not", n.to_json()]
@@ -38,8 +38,8 @@ pub fn Expr::to_json(self : Expr) -> Json {
       ["LetTuple", n_ts_res.to_json(), n.to_json(), e.to_json()]
     }
     Expr::ArrayGet(n1, n2) => ["ArrayGet", n1.to_json(), n2.to_json()]
-    Expr::ArrayPut(n1, n2, n3) =>
-      ["ArrayPut", n1.to_json(), n2.to_json(), n3.to_json()]
+    Expr::ArrayPut(n1, n2, n3, n4) =>
+      ["ArrayPut", n1.to_json(), n2.to_json(), n3.to_json(), n4.to_json()]
     Expr::ExternalArray(l) => ["ExternalArray", l._.to_json()]
   }
 }
@@ -47,9 +47,14 @@ pub fn Expr::to_json(self : Expr) -> Json {
 pub fn Expr::from_json(json : Json) -> Expr! {
   match json {
     ["Unit"] => Expr::Unit
+    ["Bool", True] => Expr::Bool(true)
+    ["Bool", False] => Expr::Bool(false)
     ["Int", Number(i)] => Expr::Int(i.to_int())
     ["Double", Number(d)] => Expr::Double(d)
+    ["Not", n] => Expr::Not(Name::from_json!(n))
     ["Neg", n] => Expr::Neg(Name::from_json!(n))
+    ["MakeArray", n1, n2] =>
+      Expr::MakeArray(Name::from_json!(n1), Name::from_json!(n2))
     ["Add", n1, n2] => Expr::Add(Name::from_json!(n1), Name::from_json!(n2))
     ["Sub", n1, n2] => Expr::Sub(Name::from_json!(n1), Name::from_json!(n2))
     ["Mul", n1, n2] => Expr::Mul(Name::from_json!(n1), Name::from_json!(n2))
@@ -119,11 +124,12 @@ pub fn Expr::from_json(json : Json) -> Expr! {
     }
     ["ArrayGet", n1, n2] =>
       Expr::ArrayGet(Name::from_json!(n1), Name::from_json!(n2))
-    ["ArrayPut", n1, n2, n3] =>
+    ["ArrayPut", n1, n2, n3, n4] =>
       Expr::ArrayPut(
         Name::from_json!(n1),
         Name::from_json!(n2),
         Name::from_json!(n3),
+        Expr::from_json!(n4),
       )
     ["ExternalArray", l] => Expr::ExternalArray(l.to_string())
     _ => fail!("invalid json")

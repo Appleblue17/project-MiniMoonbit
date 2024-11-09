@@ -265,7 +265,7 @@ pub fn KnfInterpreter::eval(
         _ => fail!("type mismatch, get expects Array and Int")
       }
     }
-    Put(arr, idx, v) => {
+    Put(arr, idx, v, body) => {
       let arr = find!(env, arr)
       let idx = find!(env, idx)
       let v = find!(env, v)
@@ -273,7 +273,7 @@ pub fn KnfInterpreter::eval(
         (Array(arr), Int(idx)) => arr[idx] = v
         _ => fail!("type mismatch, put expects Array and Int")
       }
-      Unit
+      self.eval!(env, body)
     }
     ExternalArray(_) => fail!("ExternalArray is not supported")
     ExternalFunctionApplication(name, args) => {

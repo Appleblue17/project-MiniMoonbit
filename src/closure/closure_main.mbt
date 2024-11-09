@@ -43,8 +43,13 @@ fn get_fv(e: Knf) -> Set{
     }
     Apply(f, args) => union(Set::from_array(args), Set::of([f]))
     Tuple(xs) => Set::from_array(xs)
+    LetTuple(xs, e, rest) => {
+      let mut fv = union(get_fv(rest), Set::of([e]))
+      for x in xs { fv = fv.remove(x.0) }
+      fv
+    }
     Get(x, y) => Set::of([x, y])
-    Put(x, y, z) => Set::of([x, y, z])
+    Put(x, y, z, rest) => union(Set::of([x, y, z]), get_fv(rest))
     ExternalFunctionApplication(_, args) => Set::from_array(args)
     _ => @util.die("Closure Error: get_fv not supported.")
   }
@@ -112,7 +117,7 @@ fn knf_to_closure(
         y, knf_to_closure(e))
     }
     Get(x, y) => ArrayGet(x, y)
-    Put(x, y, z) => ArrayPut(x, y, z)
+    Put(x, y, z, w) => ArrayPut(x, y, z, knf_to_closure(w))
     ExternalFunctionApplication(name, args) => {
       CallDirect(name, args)
     }
@@ -141,7 +146,7 @@ test "knf_to_closure edge cases" {
   inspect!(knf_to_closure(Tuple([Name::name_only("x"), Name::name_only("y")])), content="MakeTuple([x, y])")
   inspect!(knf_to_closure(LetTuple([(Name::name_only("x"), Type::Int)], Name::name_only("y"), Unit)), content="LetTuple([(x, Int)], y, Unit)")
   inspect!(knf_to_closure(Get(Name::name_only("x"), Name::name_only("y"))), content="ArrayGet(x, y)")
-  inspect!(knf_to_closure(Put(Name::name_only("x"), Name::name_only("y"), Name::name_only("z"))), content="ArrayPut(x, y, z)")
+  inspect!(knf_to_closure(Put(Name::name_only("x"), Name::name_only("y"), Name::name_only("z"), Knf::Unit)), content="ArrayPut(x, y, z, Unit)")
 }
 
 test "knf_to_closure random cases" {
@@ -172,7 +177,7 @@ test "knf_to_closure basic functionality" {
 
 pub fn knf_program_to_closure(
   prog : Knf,
-  extern_env : Map[String, Type]
+  extern_env : Map[String, Type] // not used
 ) -> Program {
   gloabal_closure.clear()
   let body = knf_to_closure(prog)

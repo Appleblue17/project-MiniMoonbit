@@ -152,8 +152,8 @@ pub fn to_json(self : Syntax) -> Json {
       ]
     Array(size, init) => ["Array", size.to_json(), init.to_json()]
     Get(arr, idx) => ["Get", arr.to_json(), idx.to_json()]
-    Put(arr, idx, value) =>
-      ["Put", arr.to_json(), idx.to_json(), value.to_json()]
+    Put(arr, idx, value, body) =>
+      ["Put", arr.to_json(), idx.to_json(), value.to_json(), body.to_json()]
   }
 }
 
@@ -178,7 +178,7 @@ pub fn Syntax::from_json(json : Json) -> Syntax! {
         None => fail!("invalid json: should contain a number as float")
       }
     ["Not", e] => Not(e |> Syntax::from_json!())
-    ["Neg", e] => Neg(e |> Syntax::from_json!(), kind=None)
+    ["Neg", e] => Neg(e |> Syntax::from_json!(), kind=Some(Int))
     ["FNeg", e] => Neg(e |> Syntax::from_json!(), kind=Some(Double))
     ["Add", e1, e2] =>
       Prim(
@@ -320,11 +320,12 @@ pub fn Syntax::from_json(json : Json) -> Syntax! {
       Array(size |> Syntax::from_json!(), init |> Syntax::from_json!())
     ["Get", arr, idx] =>
       Get(arr |> Syntax::from_json!(), idx |> Syntax::from_json!())
-    ["Put", arr, idx, value] =>
+    ["Put", arr, idx, value, body] =>
       Put(
         arr |> Syntax::from_json!(),
         idx |> Syntax::from_json!(),
         value |> Syntax::from_json!(),
+        body |> Syntax::from_json!(),
       )
     _ => fail!("invalid json: should contain an operator")
   }

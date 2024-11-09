@@ -34,7 +34,7 @@
 //         }
 //         (Tuple(list1), Tuple(list2)) => {
 //           let length = list1.length();
-//           guard(list2.length() != length) else { 
+//           guard(list2.length() == length) else { 
 //             @util.die("Type error: Tuple element length not match.")
 //           }
 //           for i in 0 ..< length { unify(list1[i],list2[i]) }
@@ -53,7 +53,7 @@
 //   "print_int": new(Fun([inftype_Int], inftype_Unit)),
 //   "read_char": new(Fun([], inftype_Int)),
 //   "print_char": new(Fun([inftype_Int], inftype_Unit)),
-//   "print_newline": new(Fun([], inftype_Unit)),
+//   "print_endline": new(Fun([], inftype_Unit)),
 //   // 数学函数
 //   "int_of_float": new(Fun([inftype_Double], inftype_Int)),
 //   "float_of_int": new(Fun([inftype_Int], inftype_Double)),
@@ -99,7 +99,7 @@
 //       unify(ty, inftype_Bool)
 //       ty
 //     }
-//     Array(x, num) => {
+//     Array(num, x) => {
 //       let ty = new(Array(infer(ctx, x)))
 //       let num_ty = infer(ctx, num)
 //       unify(num_ty, inftype_Int)
@@ -217,12 +217,15 @@
 //       println("LetTuple expr: \{expr_ty.to_string()}")
 //       infer(env_with_elements, rest)
 //     }
-//     Put(var, expr, rest) => {
-//       let var_ty = infer(ctx, var)
+//     Put(arr, idx, expr, rest) => {
+//       let arr_ty = infer(ctx, arr)
+//       let idx_ty = infer(ctx, idx)
 //       let expr_ty = infer(ctx, expr)
-//       unify(var_ty, expr_ty)
-//       println("Put_var: \{var_ty.to_string()}")
-//       println("Put_expr: \{expr_ty.to_string()}")
+      
+//       let val_ty = new(Array(expr_ty))
+      
+//       unify(arr_ty, val_ty)
+//       unify(idx_ty, inftype_Int)
 //       infer(ctx, rest)
 //     }
 //   }

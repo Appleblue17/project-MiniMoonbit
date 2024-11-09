@@ -13,22 +13,8 @@ pub enum Value {
   Double(Double)
   Tuple(Array[Value])
   Array(Array[Value])
-  ExternFn(String)
   Closure(@closure.FuncDef, Array[Value])
 } derive(Show)
-
-pub fn Value::op_equal(self : Value, other : Value) -> Bool {
-  match (self, other) {
-    (Unit, Unit) => true
-    (Int(x), Int(y)) => x == y
-    (Double(x), Double(y)) => x == y
-    (Tuple(xs), Tuple(ys)) => xs == ys
-    (Array(xs), Array(ys)) => xs == ys
-    (ExternFn(x), ExternFn(y)) => x == y
-    (Closure(_, _), Closure(_, _)) => false
-    _ => false
-  }
-}
 
 pub fn ClosureInterpreter::new() -> ClosureInterpreter {
   { extern_fns: Map::new(), functions: Map::new() }
@@ -279,7 +265,7 @@ pub fn ClosureInterpreter::eval(
         _ => fail!("type mismatch, get expects Array and Int")
       }
     }
-    ArrayPut(arr, idx, v) => {
+    ArrayPut(arr, idx, v, rest) => {
       let arr = find!(env, arr)
       let idx = find!(env, idx)
       let v = find!(env, v)
@@ -287,7 +273,7 @@ pub fn ClosureInterpreter::eval(
         (Array(arr), Int(idx)) => arr[idx] = v
         _ => fail!("type mismatch, put expects Array and Int")
       }
-      Unit
+      self.eval!(env, rest)
     }
     ExternalArray(_) => fail!("ExternalArray is not supported")
   }

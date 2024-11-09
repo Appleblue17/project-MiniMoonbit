@@ -75,14 +75,14 @@ fn PrettyClosure::print_one_level(
       logger.write_string("let (")
       let mut first = true
       for nt in name_types {
-        if first {
-          first = false
+        if not(first) {
           logger.write_string(", ")
         }
+        first = false
         let (name, ty) = nt
         logger.write_string("\{name}: \{ty}")
       }
-      logger.write_string(") = \{y}")
+      logger.write_string(") = \{y}\n")
       self.print_one_level(logger, e)
     }
     MakeClosure((name, ty), closure, e) => {
@@ -119,7 +119,10 @@ fn PrettyClosure::print_one_level(
       }
       logger.write_string("])")
     }
-    ArrayPut(e1, e2, e3) => logger.write_string("ArrayPut \{e1}[\{e2}] = \{e3}")
+    ArrayPut(e1, e2, e3, e4) => {
+      logger.write_string("ArrayPut \{e1}[\{e2}] = \{e3}\n")
+      self.print_one_level(logger, e4)
+    }
     ArrayGet(e1, e2) => logger.write_string("ArrayGet \{e1}[\{e2}]")
     ExternalArray(name) => logger.write_string("ExternalArray(\{name})")
   }

@@ -4,7 +4,11 @@ pub fn parser(tokens: ArrayView[Token]) -> Syntax {
   let result = top_level(tokens)
   match result {
     Some((syntax, [])) => syntax
-    _ => @util.die("Parse error: cannot parse all the tokens.")
+    Some((_, left)) => {
+      println(left)
+      @util.die("Parse error: cannot parse all the tokens.")
+    }
+    _ => @util.die("Parse error: error in parsing.")
   }
 }
 
@@ -1748,16 +1752,35 @@ test "let_stmt: basic functionality" {
     Token::INT,
   ][:]), content="Some((Int, []))")
 }
-// x[y] = z
 
+fn get_expr(tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token])?{
+  Parser(get_or_apply_level_expr)
+  .map( fn! {
+            Syntax::Get(arr, idx) as input => input
+            _ => raise ParseErr("Parsing Error: cannot assign value to apply method.")
+        } )
+  .parse(tokens)
+}
+test "get_expr: basic functionality" {
+  inspect!(get_expr([
+    Token::IDENTIFIER("x"),
+    Token::LBRACKET,
+    Token::NUMBER("0"),
+    Token::RBRACKET
+  ][:]), content=
+    #|Some((Get(Var("x"), Int(0)), []))
+  )
+}
+
+// x[y] = z
 fn assign_stmt(tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token])?{
-  Parser(get_expr)
+  Parser(expr)
   .and(assign)
   .and(expr)
   .and(semicolon)
   .and(stmt)
-  .map( fn { ((((get_expr, _), expr), _), rest)
-          => Syntax::Put(get_expr, expr, rest) })
+  .map( fn { (((( Get(arr, idx) , _), expr), _), rest)
+          => Syntax::Put(arr, idx, expr, rest) })
   .parse(tokens)
 }
 test "assign_stmt: random valid cases" {
@@ -1771,7 +1794,7 @@ test "assign_stmt: random valid cases" {
     Token::SEMICOLON,
     Token::FALSE
   ][:]), content=
-    #|Some((Put(Get(Var("x"), Int(5)), Int(10), Bool(false)), []))
+    #|Some((Put(Var("x"), Int(5), Int(10), Bool(false)), []))
   )
 
   inspect!(assign_stmt([
@@ -1784,7 +1807,7 @@ test "assign_stmt: random valid cases" {
     Token::SEMICOLON,
     Token::TRUE
   ][:]), content=
-    #|Some((Put(Get(Var("y"), Int(3)), Int(7), Bool(true)), []))
+    #|Some((Put(Var("y"), Int(3), Int(7), Bool(true)), []))
   )
 
   inspect!(assign_stmt([
@@ -1797,7 +1820,7 @@ test "assign_stmt: random valid cases" {
     Token::SEMICOLON,
     Token::FALSE
   ][:]), content=
-    #|Some((Put(Get(Var("z"), Int(1)), Int(100), Bool(false)), []))
+    #|Some((Put(Var("z"), Int(1), Int(100), Bool(false)), []))
   )
 }
 test "assign_stmt: invalid token sequence" {
@@ -1851,12 +1874,16 @@ test "assign_stmt: boundary cases" {
     Token::LBRACKET,
     Token::NUMBER("0"),
     Token::RBRACKET,
+    Token::LBRACKET,
+    Token::NUMBER("1"),
+    Token::RBRACKET,
+    
     Token::ASSIGN,
     Token::NUMBER("0"),
     Token::SEMICOLON,
     Token::FALSE
   ][:]), content=
-    #|Some((Put(Get(Var("x"), Int(0)), Int(0), Bool(false)), []))
+    #|Some((Put(Get(Var("x"), Int(0)), Int(1), Int(0), Bool(false)), []))
   )
 
   inspect!(assign_stmt([
@@ -1869,7 +1896,7 @@ test "assign_stmt: boundary cases" {
     Token::SEMICOLON,
     Token::TRUE
   ][:]), content=
-    #|Some((Put(Get(Var("x"), Int(0)), Int(2147483647), Bool(true)), []))
+    #|Some((Put(Var("x"), Int(0), Int(2147483647), Bool(true)), []))
   )
 }
 test "assign_stmt: basic functionality" {
@@ -1883,28 +1910,10 @@ test "assign_stmt: basic functionality" {
     Token::SEMICOLON,
     Token::TRUE
   ][:]), content=
-    #|Some((Put(Get(Var("x"), Int(0)), Int(1), Bool(true)), []))
+    #|Some((Put(Var("x"), Int(0), Int(1), Bool(true)), []))
   )
 }
 
-fn get_expr(tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token])?{
-  Parser(get_or_apply_level_expr)
-  .map( fn! {
-            Syntax::Get(_, _) as input => input
-            _ => raise ParseErr("Parsing Error: cannot assign value to apply method.")
-        } )
-  .parse(tokens)
-}
-test "assign_stmt: basic functionality" {
-  inspect!(get_expr([
-    Token::IDENTIFIER("x"),
-    Token::LBRACKET,
-    Token::NUMBER("0"),
-    Token::RBRACKET
-  ][:]), content=
-    #|Some((Get(Var("x"), Int(0)), []))
-  )
-}
 // Expressions, in order of precedence.
 
 // expr: not associative
@@ -1925,6 +1934,9 @@ fn expr(tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token])?{
     add_sub_level_expr
   )
   .parse(tokens)
+}
+test "expr function: single number" {
+  inspect!(expr([Token::NUMBER("1")][:]), content="Some((Int(1), []))")
 }
 test "expr function: group expressions" {
   inspect!(expr([Token::LPAREN, Token::NUMBER("1"), Token::RPAREN][:]), content="Some((Int(1), []))")
@@ -2242,6 +2254,13 @@ fn get_or_apply_level_expr(tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token
         } )
   .parse(tokens)
 }
+test "get_or_apply_level_expr: basic functionality" {
+  inspect!(get_or_apply_level_expr([
+    Token::IDENTIFIER("x"),
+    ][:]), content=
+      #|Some((Var("x"), []))
+    )
+}
 test "get_or_apply_level_expr: multiple cases" {
   inspect!(get_or_apply_level_expr([
     //f[x](y)[z]
@@ -2351,6 +2370,7 @@ test "get_or_apply_level_expr: basic functionality" {
       #|Some((App(Var("f"), [Var("x"), Var("y")]), []))
     )
 }
+
 
 // Value expressions
 

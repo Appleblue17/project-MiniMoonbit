@@ -1,0 +1,1 @@
+["LetRec",{"name":["fib",["Fun",["Int"],"Int"]],"args":[["n","Int"]],"body":["If",["LE",["Var","n"],["Int",1]],["Var","n"],["Add",["App",["Var","fib"],[["Sub",["Var","n"],["Int",1]]]],["App",["Var","fib"],[["Sub",["Var","n"],["Int",2]]]]]]},["LetRec",{"name":["main",["Fun",[],"Unit"]],"args":[],"body":["App",["Var","print_int"],[["App",["Var","fib"],[["Int",10]]]]]},"Unit"]]
