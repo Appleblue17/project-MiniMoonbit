@@ -205,23 +205,7 @@ fn ast_to_knf(ctx : LocalEnv, syntax : Syntax) -> Knf {
       // let name_z = <z> in
       // ...
       
-      // It's gauranteed that tuple is Tuple(...) or Var.
       match val {
-        Tuple(exprs) => {
-          let exprs_knf = exprs.map( fn { expr => ast_to_knf(ctx, expr) } )
-          
-          let mut new_ctx = ctx
-          let name_and_elements = Array::new()
-          for i in 0..<elements.length() {
-            name_and_elements.push( (env.val.new_str_name(elements[i].0), exprs_knf[i]) )
-            new_ctx = new_ctx.add(elements[i].0, name_and_elements[i].0)
-          }
-          name_and_elements.fold( init = ast_to_knf(new_ctx, rest),
-            fn { 
-              knf, (name, element) => 
-                Let((name, Var({val: None})), element, knf)
-            } )
-        }
         Var(str) => {
           match ctx[str] {
             Some(name) => {
@@ -240,7 +224,20 @@ fn ast_to_knf(ctx : LocalEnv, syntax : Syntax) -> Knf {
           }
         }
         _ => {
-          @util.die("KNF error: LetTuple must have a tuple as the second argument.")
+          let val_knf = ast_to_knf(ctx, val)
+          let val_name = env.val.new_name()
+          
+          let mut new_ctx = ctx
+          let element_names = []
+          for i in 0..<elements.length() {
+            let element_str = elements[i].0
+            let element_name = env.val.new_str_name(element_str)
+            new_ctx = new_ctx.add(element_str, element_name)
+            element_names.push( (element_name, elements[i].1) )
+          }
+          Let( (val_name, Var({val: None})), val_knf,
+            LetTuple(element_names, val_name, ast_to_knf(new_ctx, rest))
+          )
         }
       }
       
