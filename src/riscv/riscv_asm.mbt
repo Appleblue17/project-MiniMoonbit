@@ -83,6 +83,7 @@ pub enum RvAsm {
   // Comments
   Label(String)
   Comment(String)
+  Text(String)
 }
 
 fn write3[TReg1 : Show, TReg2 : Show, TReg3 : Show](
@@ -272,6 +273,9 @@ impl Show for RvAsm with output(self, logger) {
     Comment(comment) => {
       logger.write_string("# ")
       logger.write_string(comment)
+    }
+    Text(text) => {
+      logger.write_string(text)
     }
   }
 }

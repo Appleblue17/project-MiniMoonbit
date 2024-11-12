@@ -3,8 +3,6 @@ typealias LowType = @closure.LowType
 typealias Program = @closure.Program
 typealias Name = @types.Name
 
-pub typealias LocalEnv = @immut/hashmap.T[Name, Int] // 
-
 pub struct AssemblyFunction {
   name : String
   export : Bool
