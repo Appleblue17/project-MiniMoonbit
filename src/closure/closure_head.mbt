@@ -29,7 +29,7 @@ pub enum Expr {
   CallClosure(Name, Array[Name])
   CallDirect(Label, Array[Name])
   MakeTuple(Array[Name])
-  LetTuple(Array[(Name, LowType)], Name, Expr)
+  LetTuple(Array[(Name, LowType)], Expr, Expr)
   ArrayGet(Name, Name)
   ArrayPut(Name, Name, Name, Expr)
   ExternalArray(Label) // not used

@@ -26,7 +26,7 @@ pub enum Knf {
   LetRec(FuncDef, Knf)
   Apply(Name, Array[Name])
   Tuple(Array[Name])
-  LetTuple(Array[(Name, Type)], Name, Knf)
+  LetTuple(Array[(Name, Type)], Knf, Knf)
   Get(Name, Name)
   Put(Name, Name, Name, Knf)
   ExternalArray(Name) // not used

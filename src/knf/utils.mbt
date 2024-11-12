@@ -52,7 +52,7 @@ pub fn knf_max_counter(knf : Knf) -> Int {
       xs.map(fn(x) { x.slot }).fold(init=0, fn(a, b) { @math.maximum(a, b) })
     LetTuple(xts, n, e) =>
       @math.maximum(
-        n.slot,
+        knf_max_counter(n),
         @math.maximum(
           xts
           .map(fn(x) { x.0.slot })

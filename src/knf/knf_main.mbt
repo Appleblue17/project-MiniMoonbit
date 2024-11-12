@@ -199,47 +199,22 @@ fn ast_to_knf(ctx : LocalEnv, syntax : Syntax) -> Knf {
           body: body_knf }, ast_to_knf(ctx_with_f, rest) )
     }
     
-    LetTuple(elements, val, rest) => {
+    LetTuple(elements, value, rest) => {
       // let name_x = <x> in
       // let name_y = <y> in
       // let name_z = <z> in
       // ...
       
-      match val {
-        Var(str) => {
-          match ctx[str] {
-            Some(name) => {
-              // We do not declare those elements one by one because they are decleared by LetTuple.
-              let mut new_ctx = ctx
-              let element_names = []
-              for i in 0..<elements.length() {
-                let element_str = elements[i].0
-                let element_name = env.val.new_str_name(element_str)
-                new_ctx = new_ctx.add(element_str, element_name)
-                element_names.push( (element_name, elements[i].1) )
-              }
-              LetTuple(element_names, name, ast_to_knf(new_ctx, rest))
-            }
-            None => { @util.die("KNF error: function/variable \{str} not bounded.") }
-          }
-        }
-        _ => {
-          let val_knf = ast_to_knf(ctx, val)
-          let val_name = env.val.new_name()
-          
-          let mut new_ctx = ctx
-          let element_names = []
-          for i in 0..<elements.length() {
-            let element_str = elements[i].0
-            let element_name = env.val.new_str_name(element_str)
-            new_ctx = new_ctx.add(element_str, element_name)
-            element_names.push( (element_name, elements[i].1) )
-          }
-          Let( (val_name, Var({val: None})), val_knf,
-            LetTuple(element_names, val_name, ast_to_knf(new_ctx, rest))
-          )
-        }
+      let value_knf = ast_to_knf(ctx, value)
+      let mut new_ctx = ctx
+      let element_names = []
+      for i in 0..<elements.length() {
+        let element_str = elements[i].0
+        let element_name = env.val.new_str_name(element_str)
+        new_ctx = new_ctx.add(element_str, element_name)
+        element_names.push( (element_name, elements[i].1) )
       }
+      LetTuple(element_names, value_knf, ast_to_knf(new_ctx, rest))
       
     }
     

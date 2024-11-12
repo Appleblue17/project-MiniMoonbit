@@ -6,7 +6,7 @@ fn type2lowtype(ty: Type) -> LowType {
     Bool => Bool
     Int => Int
     Double => Double
-    Fun(args, ret) => ClosureFn(args.map(type2lowtype), type2lowtype(ret))
+    Fun(args, ret) => DirectFn(args.map(type2lowtype), type2lowtype(ret))
     Tuple(ts) => Tuple(ts.map(type2lowtype))
     Array(t) => Array(type2lowtype(t))
     Var( {val: Some(t)} ) => type2lowtype(t)
@@ -44,7 +44,7 @@ fn get_fv(e: Knf) -> Set{
     Apply(f, args) => union(Set::from_array(args), Set::of([f]))
     Tuple(xs) => Set::from_array(xs)
     LetTuple(xs, e, rest) => {
-      let mut fv = union(get_fv(rest), Set::of([e]))
+      let mut fv = union(get_fv(rest), get_fv(e))
       for x in xs { fv = fv.remove(x.0) }
       fv
     }
@@ -83,7 +83,6 @@ fn knf_to_closure(
       IfLe(x, y, knf_to_closure(e1), knf_to_closure(e2))
     }
     Let((x, ty), e1, e2) => {
-      let _ty = type2lowtype(ty)
       Let((x, type2lowtype(ty)), knf_to_closure(e1), knf_to_closure(e2))
     }
     Var(x) => Var(x)
@@ -104,7 +103,7 @@ fn knf_to_closure(
         }
       )
       MakeClosure(
-          (f, type2lowtype(ty)), 
+          (f, type2lowtype(ty)),
           { name: f.to_string(), actual_free_vars: free_vars },
           knf_to_closure(rest) )
     }
@@ -114,7 +113,7 @@ fn knf_to_closure(
     Tuple(xs) => MakeTuple(xs)
     LetTuple(xs, y, e) => {
       LetTuple(xs.map( fn { (name, ty) => (name, type2lowtype(ty)) }),
-        y, knf_to_closure(e))
+        knf_to_closure(y), knf_to_closure(e))
     }
     Get(x, y) => ArrayGet(x, y)
     Put(x, y, z, w) => ArrayPut(x, y, z, knf_to_closure(w))
@@ -135,7 +134,7 @@ test "knf_to_closure letrec" {
         Unit
       )))
   , content=
-    #|Let((x, Int), Int(3), MakeClosure((f, ClosureFn([Int], Int)), {name: Label("f"), actual_free_vars: [x]}, Unit))
+    #|Let((x, Int), Int(3), MakeClosure((f, DirectFn([Int], Int)), {name: Label("f"), actual_free_vars: [x]}, Unit))
   )
 }
 test "knf_to_closure edge cases" {
@@ -144,7 +143,7 @@ test "knf_to_closure edge cases" {
   inspect!(knf_to_closure(Let((Name::name_only("x"), Type::Int), Unit, Unit)), content="Let((x, Int), Unit, Unit)")
   inspect!(knf_to_closure(Var(Name::name_only("x"))), content="Var(x)")
   inspect!(knf_to_closure(Tuple([Name::name_only("x"), Name::name_only("y")])), content="MakeTuple([x, y])")
-  inspect!(knf_to_closure(LetTuple([(Name::name_only("x"), Type::Int)], Name::name_only("y"), Unit)), content="LetTuple([(x, Int)], y, Unit)")
+  inspect!(knf_to_closure(LetTuple([(Name::name_only("x"), Type::Int)], Knf::Int(5), Unit)), content="LetTuple([(x, Int)], Int(5), Unit)")
   inspect!(knf_to_closure(Get(Name::name_only("x"), Name::name_only("y"))), content="ArrayGet(x, y)")
   inspect!(knf_to_closure(Put(Name::name_only("x"), Name::name_only("y"), Name::name_only("z"), Knf::Unit)), content="ArrayPut(x, y, z, Unit)")
 }

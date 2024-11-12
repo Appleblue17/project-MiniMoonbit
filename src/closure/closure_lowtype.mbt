@@ -4,8 +4,8 @@ pub enum LowType {
   Bool
   Int
   Double
-  ClosureFn(Array[LowType], LowType) // (fn_ptr, closure_args...)
   DirectFn(Array[LowType], LowType) // fn_ptr itself
+  ClosureFn(Array[LowType]) // (fn_ptr, closure_args...)
   Tuple(Array[LowType])
   Array(LowType)
   Ptr

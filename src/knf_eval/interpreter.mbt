@@ -241,7 +241,7 @@ pub fn KnfInterpreter::eval(
     }
     LetTuple(xts, y, e) => {
       let mut new_env = env
-      let y = find!(env, y)
+      let y = self.eval!(env, y)
       match y {
         Tuple(vs) => {
           let len = xts.length()

@@ -120,7 +120,7 @@ pub fn Expr::from_json(json : Json) -> Expr! {
           _ => fail!("invalid json")
         }
       }
-      Expr::LetTuple(n_ts_res, Name::from_json!(n), Expr::from_json!(e))
+      Expr::LetTuple(n_ts_res, Expr::from_json!(n), Expr::from_json!(e))
     }
     ["ArrayGet", n1, n2] =>
       Expr::ArrayGet(Name::from_json!(n1), Name::from_json!(n2))
@@ -146,7 +146,7 @@ pub fn LowType::to_json(self : LowType) -> Json {
     LowType::Tuple(ts) => ["Tuple", ts.to_json()]
     LowType::Array(t) => ["Array", t.to_json()]
     LowType::DirectFn(ts, t) => ["DirectFunction", ts.to_json(), t.to_json()]
-    LowType::ClosureFn(ts, t) => ["ClosureFunction", ts.to_json(), t.to_json()]
+    LowType::ClosureFn(ts) => ["ClosureFunction", ts.to_json()]
   }
 }
 
@@ -177,7 +177,7 @@ pub fn LowType::from_json(json : Json) -> LowType! {
       for t in ts {
         ts_res.push(LowType::from_json!(t))
       }
-      LowType::ClosureFn(ts_res, LowType::from_json!(t))
+      LowType::ClosureFn(ts_res)
     }
     _ => fail!("invalid json")
   }

@@ -115,7 +115,7 @@ pub fn Knf::from_json(json : Json) -> Knf! {
           _ => fail!("Knf::from_json: invalid json: \{json}")
         }
       }
-      LetTuple(n_ts_res, Name::from_json!(n), Knf::from_json!(k))
+      LetTuple(n_ts_res, Knf::from_json!(n), Knf::from_json!(k))
     }
     ["Get", n1, n2] => Get(Name::from_json!(n1), Name::from_json!(n2))
     ["Put", n1, n2, n3, n4] =>
