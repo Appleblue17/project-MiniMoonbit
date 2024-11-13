@@ -67,7 +67,7 @@ fn ast_to_knf(ctx : LocalEnv, syntax : Syntax) -> (Knf, Type) {
       let (num_ret, num_ty) = ast_to_knf(ctx, num)
       let knf = 
         Let((expr_name, expr_ty), expr_ret,
-          Let((num_name, Int), num_ret,
+          Let((num_name, num_ty), num_ret,
             Array(expr_name, num_name)
           )
         )
