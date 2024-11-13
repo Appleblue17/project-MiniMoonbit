@@ -1436,7 +1436,7 @@ fn let_tuple_stmt(tokens: ArrayView[Token]) -> (Syntax, ArrayView[Token])?{
     .optional_type()
   )
   .and(assign)
-  .and(value_expr)
+  .and(expr)
   .and(semicolon)
   .and(stmt)
   .map( fn! { ((((((((_, _), id_list), _), typ), _), expr), _), rest)

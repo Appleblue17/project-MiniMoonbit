@@ -146,7 +146,7 @@ pub fn LowType::to_json(self : LowType) -> Json {
     LowType::Tuple(ts) => ["Tuple", ts.to_json()]
     LowType::Array(t) => ["Array", t.to_json()]
     LowType::DirectFn(ts, t) => ["DirectFunction", ts.to_json(), t.to_json()]
-    LowType::ClosureFn(ts) => ["ClosureFunction", ts.to_json()]
+    LowType::ClosureFn(ts, t) => ["ClosureFunction", ts.to_json(), t.to_json()]
   }
 }
 
@@ -177,7 +177,7 @@ pub fn LowType::from_json(json : Json) -> LowType! {
       for t in ts {
         ts_res.push(LowType::from_json!(t))
       }
-      LowType::ClosureFn(ts_res)
+      LowType::ClosureFn(ts_res, LowType::from_json!(t))
     }
     _ => fail!("invalid json")
   }

@@ -6,7 +6,7 @@ fn type2lowtype(ty: Type) -> LowType {
     Bool => Bool
     Int => Int
     Double => Double
-    Fun(args, ret) => DirectFn(args.map(type2lowtype), type2lowtype(ret))
+    Fun(args, ret) => ClosureFn(args.map(type2lowtype), type2lowtype(ret))
     Tuple(ts) => Tuple(ts.map(type2lowtype))
     Array(t) => Array(type2lowtype(t))
     Var( {val: Some(t)} ) => type2lowtype(t)
@@ -55,7 +55,7 @@ fn get_fv(e: Knf) -> Set{
   }
 }
 
-let gloabal_closure: Array[FuncDef] = []
+let global_closure: Array[FuncDef] = []
 fn knf_to_closure(
   knf : Knf,
 ) -> Expr {
@@ -92,7 +92,7 @@ fn knf_to_closure(
       for x in fv {
         free_vars.push(x)
       }
-      gloabal_closure.push(
+      global_closure.push(
         FuncDef::{ name: f.to_string(),
           old_name: f,
           is_closure: true,
@@ -178,7 +178,7 @@ pub fn knf_program_to_closure(
   prog : Knf,
   extern_env : Map[String, Type] // not used
 ) -> Program {
-  gloabal_closure.clear()
+  global_closure.clear()
   let body = knf_to_closure(prog)
-  { fundefs: gloabal_closure, body }
+  { fundefs: global_closure, body }
 }

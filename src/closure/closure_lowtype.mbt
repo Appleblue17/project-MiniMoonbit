@@ -5,7 +5,8 @@ pub enum LowType {
   Int
   Double
   DirectFn(Array[LowType], LowType) // fn_ptr itself
-  ClosureFn(Array[LowType]) // (fn_ptr, closure_args...)
+  ClosureFn(Array[LowType], LowType) // (fn_ptr, closure_args...)
+  Closure(Array[(Name, LowType)]) // only used in riscv.
   Tuple(Array[LowType])
   Array(LowType)
   Ptr
