@@ -108,7 +108,7 @@
 //     Neg(x, ..)=> {
 //       let ty = infer(ctx, x)
 //       println("Neg new: [linked] <\{node_list.length()}>\{Kind}")
-//       unify(ty, new(Kind, link = e))
+//       unify(ty, new(Kind, link = [e]))
 //       ty
 //     }
 //     App(f, args) => {
@@ -149,7 +149,7 @@
 //       let expr1_ty = infer(ctx, expr1)
 //       let expr2_ty = infer(ctx, expr2)
 //       println("Prim new: <\{node_list.length()}>\{Kind}")
-//       unify(expr1_ty, new(Kind, link = e))
+//       unify(expr1_ty, new(Kind, link = [e]))
 //       unify(expr2_ty, expr1_ty)
 //       println("Prim_Expr1: [linked] \{expr1_ty.to_string()}")
 //       println("Prim_Expr2: \{expr2_ty.to_string()}")
@@ -172,7 +172,7 @@
 //       let env_with_f = ctx.add(f, f_ty)
       
 //       let expr_ty = infer(ctx, expr)
-//       expr_ty.link = e
+//       expr_ty.link.push(e)
 //       unify(f_ty, expr_ty)
 //       println("Let \{f}: \{f_ty.to_string()}")
 //       println("Let expr \{f}: [linked] \{expr_ty.to_string()}")
@@ -199,7 +199,7 @@
 //       println("Func \{f}: \{f_ty.to_string()}")
 //       println("Func_body \{f}: \{body_ty.to_string()}")
 //       println("Func new \{f}: [linked] <\{node_list.length()}>\{Fun(args_ty, body_ty)}")
-//       unify(f_ty, new(Fun(args_ty, body_ty), link = e))
+//       unify(f_ty, new(Fun(args_ty, body_ty), link = [e]))
       
 //       infer(env_with_f, rest, ~is_top)
 //     }
@@ -213,7 +213,7 @@
 //       }
 //       let expr_ty = infer(ctx, expr)
 //       println("LetTuple new: [linked] <\{node_list.length()}>\{Tuple(elements_ty)}")
-//       unify(expr_ty, new(Tuple(elements_ty), link = e))
+//       unify(expr_ty, new(Tuple(elements_ty), link = [e]))
 //       println("LetTuple expr: \{expr_ty.to_string()}")
 //       infer(env_with_elements, rest)
 //     }
@@ -352,41 +352,44 @@
 //   for node in node_list {
 //     let sol = node.get_dsu_father().sol_typ
 //     solve_count += 1
-//     match node.link {
-//       Unit => continue
-//       Let((_, ty), _, _) => {
-//         modify(ty, sol)
-//       }
-//       LetRec({ name: (_, t), args: arg_list, .. }, _) => {
-//         let Fun(args, ret) = t
-//         let Fun(sol_args, sol_ret) = sol
-//         let length = args.length()
-//         for i in 0..<length {
-//           modify(args[i], sol_args[i])
-//           modify(arg_list[i].1, sol_args[i])
+//     for link in node.link {
+//       match link {
+//         Unit => continue
+//         Let((_, ty), _, _) => {
+//           modify(ty, sol)
 //         }
-//         modify(ret, sol_ret)
-//       }
-//       LetTuple(elements, _, _) => {
-//         let Tuple(sol_elements) = sol
-//         let length = elements.length()
-//         for i in 0 ..<length {
-//           modify(elements[i].1, sol_elements[i])
+//         LetRec({ name: (_, t), args: arg_list, .. }, _) => {
+//           let Fun(args, ret) = t
+//           let Fun(sol_args, sol_ret) = sol
+//           let length = args.length()
+//           for i in 0..<length {
+//             modify(args[i], sol_args[i])
+//             modify(arg_list[i].1, sol_args[i])
+//           }
+//           modify(ret, sol_ret)
 //         }
-//       }
-//       Prim(_) as syntax=> {
-//         match sol {
-//           Int => syntax.kind = Some(Int)
-//           Double => syntax.kind = Some(Double)
+//         LetTuple(elements, _, _) => {
+//           let Tuple(sol_elements) = sol
+//           let length = elements.length()
+//           for i in 0 ..<length {
+//             modify(elements[i].1, sol_elements[i])
+//           }
 //         }
-//       }
-//       Neg(_) as syntax=> {
-//         match sol {
-//           Int => syntax.kind = Some(Int)
-//           Double => syntax.kind = Some(Double)
+//         Prim(_) as syntax=> {
+//           match sol {
+//             Int => syntax.kind = Some(Int)
+//             Double => syntax.kind = Some(Double)
+//           }
+//         }
+//         Neg(_) as syntax=> {
+//           match sol {
+//             Int => syntax.kind = Some(Int)
+//             Double => syntax.kind = Some(Double)
+//           }
 //         }
 //       }
 //     }
+    
 //   }
   
 //   guard(solve_count == node_list.length()) else { 

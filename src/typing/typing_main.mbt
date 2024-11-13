@@ -113,7 +113,7 @@ fn infer(ctx: LocalCtx, e: Syntax) -> InfType {
     }
     Neg(x, ..)=> {
       let ty = infer(ctx, x)
-      unify(ty, new(Kind, link = e))
+      unify(ty, new(Kind, link = [e]))
       ty
     }
     App(f, args) => {
@@ -145,7 +145,7 @@ fn infer(ctx: LocalCtx, e: Syntax) -> InfType {
     Prim(expr1, expr2, _, ..) => {
       let expr1_ty = infer(ctx, expr1)
       let expr2_ty = infer(ctx, expr2)
-      unify(expr1_ty, new(Kind, link = e))
+      unify(expr1_ty, new(Kind, link = [e]))
       unify(expr2_ty, expr1_ty)
       expr1_ty
     }
@@ -161,7 +161,7 @@ fn infer(ctx: LocalCtx, e: Syntax) -> InfType {
       let env_with_f = ctx.add(f, f_ty)
       
       let expr_ty = infer(ctx, expr)
-      expr_ty.link = e
+      expr_ty.link.push(e)
       unify(f_ty, expr_ty)
       
       infer(env_with_f, rest)
@@ -179,7 +179,7 @@ fn infer(ctx: LocalCtx, e: Syntax) -> InfType {
       }
       
       let body_ty = infer(env_with_params, body)
-      unify(f_ty, new(Fun(args_ty, body_ty), link = e))
+      unify(f_ty, new(Fun(args_ty, body_ty), link = [e]))
       
       infer(env_with_f, rest)
     }
@@ -192,7 +192,7 @@ fn infer(ctx: LocalCtx, e: Syntax) -> InfType {
         env_with_elements = env_with_elements.add(elements[i].0, elements_ty[i])
       }
       let expr_ty = infer(ctx, expr)
-      unify(expr_ty, new(Tuple(elements_ty), link = e))
+      unify(expr_ty, new(Tuple(elements_ty), link = [e]))
       infer(env_with_elements, rest)
     }
     Put(arr, idx, expr, rest) => {
@@ -260,7 +260,6 @@ fn topo_sort() -> Unit{
     }
     
     for fat in node.father {
-      
       fat.unsolved_number -= 1
       if fat.unsolved_number == 0 { queue.push(fat) }
     }
@@ -270,41 +269,44 @@ fn topo_sort() -> Unit{
   for node in node_list {
     let sol = node.get_dsu_father().sol_typ
     solve_count += 1
-    match node.link {
-      Unit => continue
-      Let((_, ty), _, _) => {
-        modify(ty, sol)
-      }
-      LetRec({ name: (_, t), args: arg_list, .. }, _) => {
-        let Fun(args, ret) = t
-        let Fun(sol_args, sol_ret) = sol
-        let length = args.length()
-        for i in 0..<length {
-          modify(args[i], sol_args[i])
-          modify(arg_list[i].1, sol_args[i])
+    for link in node.link {
+        match link {
+        Unit => continue
+        Let((_, ty), _, _) => {
+          modify(ty, sol)
         }
-        modify(ret, sol_ret)
-      }
-      LetTuple(elements, _, _) => {
-        let Tuple(sol_elements) = sol
-        let length = elements.length()
-        for i in 0 ..<length {
-          modify(elements[i].1, sol_elements[i])
+        LetRec({ name: (_, t), args: arg_list, .. }, _) => {
+          let Fun(args, ret) = t
+          let Fun(sol_args, sol_ret) = sol
+          let length = args.length()
+          for i in 0..<length {
+            modify(args[i], sol_args[i])
+            modify(arg_list[i].1, sol_args[i])
+          }
+          modify(ret, sol_ret)
         }
-      }
-      Prim(_) as syntax=> {
-        match sol {
-          Int => syntax.kind = Some(Int)
-          Double => syntax.kind = Some(Double)
+        LetTuple(elements, _, _) => {
+          let Tuple(sol_elements) = sol
+          let length = elements.length()
+          for i in 0 ..<length {
+            modify(elements[i].1, sol_elements[i])
+          }
         }
-      }
-      Neg(_) as syntax=> {
-        match sol {
-          Int => syntax.kind = Some(Int)
-          Double => syntax.kind = Some(Double)
+        Prim(_) as syntax=> {
+          match sol {
+            Int => syntax.kind = Some(Int)
+            Double => syntax.kind = Some(Double)
+          }
+        }
+        Neg(_) as syntax=> {
+          match sol {
+            Int => syntax.kind = Some(Int)
+            Double => syntax.kind = Some(Double)
+          }
         }
       }
     }
+    
   }
   
   guard(solve_count == node_list.length()) else { 

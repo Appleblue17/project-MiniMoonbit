@@ -23,7 +23,7 @@ struct InfType{
   dsu_father: Ref[InfType?]
   father: Array[InfType]
   mut unsolved_number: Int
-  mut link: Syntax // link to the original Syntax tree, only for Prim, Let, LetRec, LetTuple
+  mut link: Array[Syntax] // link to the original Syntax tree, only for Prim, Let, LetRec, LetTuple
   id: Int
 }
 
@@ -69,7 +69,7 @@ fn to_string(self: InfType) -> String{
 
 
 // Root is the origin of InfType.
-let inftype_root: InfType = {typ: Some(Unit), sol_typ: Unit, dsu_father: Ref::new(None), father: [], unsolved_number: 0, id: 0, link: Unit}
+let inftype_root: InfType = {typ: Some(Unit), sol_typ: Unit, dsu_father: Ref::new(None), father: [], unsolved_number: 0, id: 0, link: []}
 // Basic (not recursive) types can share the same address to save memory.
 let inftype_Unit: InfType = InfType::new(Unit)
 let inftype_Double: InfType = InfType::new(Double)
@@ -77,7 +77,7 @@ let inftype_Int: InfType = InfType::new(Int)
 let inftype_Bool: InfType = InfType::new(Bool)
 
 let node_list: Array[InfType] = []
-fn InfType::new(typ: MyType, ~link: Syntax = Unit) -> InfType{
+fn InfType::new(typ: MyType, ~link: Array[Syntax] = []) -> InfType{
   let arg_count = match typ {
     Fun(args, _) => args.length()+1
     Tuple(elements) => elements.length()
@@ -90,7 +90,7 @@ fn InfType::new(typ: MyType, ~link: Syntax = Unit) -> InfType{
   x
 }
 fn InfType::new_tvar() -> InfType{
-  let x = {typ: None, sol_typ: Unit, dsu_father: Ref::new(Some(inftype_root)), father: [], unsolved_number: 0, id: node_list.length(), link: Unit}
+  let x = {typ: None, sol_typ: Unit, dsu_father: Ref::new(Some(inftype_root)), father: [], unsolved_number: 0, id: node_list.length(), link: []}
   x.dsu_father.val = Some(x)
   node_list.push(x)
   x
