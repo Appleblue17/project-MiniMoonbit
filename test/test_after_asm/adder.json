@@ -77,5 +77,5 @@ minimbt_main:
   sw a0, -32(s0)
   # Ecall Label("minimbt_print_int") [_7]
   lw a0, -32(s0)
-  call Label("minimbt_print_int")
+  call minimbt_print_int
 

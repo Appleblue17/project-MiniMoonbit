@@ -702,7 +702,7 @@ fn closure_to_riscv(
           _ => @util.die("Asm error: CallDirect not implemented.")
         }
       }
-      asm + [Call(name.to_string())]
+      asm + [Call(name._.to_string())]
       // match name._ {
       //   "minimbt_print_int" => asm + [Li(A7, "1"), Ecall]
       //   "minimbt_print_endline" => asm + [Li(A7, "11"), Li(A0, "10"), Ecall]
