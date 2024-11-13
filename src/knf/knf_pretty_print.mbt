@@ -77,12 +77,14 @@ fn PrettyKnf::print_one_level(
       for nt in name_types {
         if first {
           first = false
+        }
+        else {
           logger.write_string(", ")
         }
         let (name, ty) = nt
         logger.write_string("\{name}: \{ty}")
       }
-      logger.write_string(") = \{y}")
+      logger.write_string(") = \{y}\n")
       self.print_one_level(logger, e)
     }
     LetRec(fundef, e) => {

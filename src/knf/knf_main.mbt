@@ -1,13 +1,28 @@
 let env: Ref[KnfEnv] = Ref::new(KnfEnv::new(@immut/hashmap.T::new()))
-fn ast_to_knf(ctx : LocalEnv, syntax : Syntax) -> Knf {
+
+fn clean(ty : Type) -> Type {
+  match ty {
+    Var(t) =>
+      match t.val {
+        Some(t) => clean(t)
+        None => @util.die("KNF error: type not resolved. There is a problem in typechecking.")
+      }
+    Tuple(tys) => Tuple(tys.map(clean))
+    Array(ty) => Array(clean(ty))
+    Fun(args, ret) => Fun(args.map(clean), clean(ret))
+    _ => ty
+  }
+}
+
+fn ast_to_knf(ctx : LocalEnv, syntax : Syntax) -> (Knf, Type) {
   match syntax {
-    Unit => Unit
-    Bool(value) => Bool(value)
-    Int(value) => Int(value)
-    Double(value) => Double(value)
+    Unit => (Unit, Unit)
+    Bool(value) => (Bool(value), Bool)
+    Int(value) => (Int(value), Int)
+    Double(value) => (Double(value), Double)
     Var(str) => {
       match ctx[str] {
-        Some(name) => Var(name)
+        Some( (name, typ) ) => (Var(name), typ)
         None => { @util.die("KNF error: function/variable \{str} not bounded.") }
       }
     }
@@ -23,17 +38,23 @@ fn ast_to_knf(ctx : LocalEnv, syntax : Syntax) -> Knf {
         name_and_elements.push((names[i], elements[i]))
       }
       
-      name_and_elements.fold( init = Tuple(names),
-        fn { 
-          knf, (name, element) => 
-            Let((name, Var({val: None})), ast_to_knf(ctx, element), knf)
-        } )
+      let typs = []
+      let knf = 
+        name_and_elements.fold( init = Tuple(names),
+          fn { 
+            knf, (name, element) => {
+              let (ret, ty) = ast_to_knf(ctx, element)
+              typs.push(ty)
+              Let((name, ty), ret, knf)
+            }
+          } )
+      (knf, Tuple(typs) )
     }
     Not(expr) => {
       // let expr_name = <expr> in
       // Not(expr_name)
       let expr_name = env.val.new_name()
-      Let((expr_name, Bool), ast_to_knf(ctx, expr), Not(expr_name))
+      (Let((expr_name, Bool), ast_to_knf(ctx, expr).0, Not(expr_name)), Bool)
     }
     Array(expr, num) => {
       // let expr_name = <expr> in
@@ -41,24 +62,29 @@ fn ast_to_knf(ctx : LocalEnv, syntax : Syntax) -> Knf {
       // Array::make(expr_name, num_name)
       let expr_name = env.val.new_name()
       let num_name = env.val.new_name()
-      Let((expr_name, Var({val: None})), ast_to_knf(ctx, expr),
-        Let((num_name, Int), ast_to_knf(ctx, num),
-          Array(expr_name, num_name)
+      
+      let (expr_ret, expr_ty) = ast_to_knf(ctx, expr)
+      let (num_ret, num_ty) = ast_to_knf(ctx, num)
+      let knf = 
+        Let((expr_name, expr_ty), expr_ret,
+          Let((num_name, Int), num_ret,
+            Array(expr_name, num_name)
+          )
         )
-      )
+      (knf, Array(num_ty) )
     }
     Neg(expr, ~kind) => {
       // let expr_name = <expr> in
       // Neg(expr_name)
       
       let expr_name = env.val.new_name()
-      Let((expr_name, Int), ast_to_knf(ctx, expr), 
+      (Let((expr_name, Int), ast_to_knf(ctx, expr).0, 
         match kind {
           Some(Int) => Neg(expr_name)
           Some(Double) => FNeg(expr_name)
           _ => @util.die("KNF error: Neg must have a kind, there is a problem with typing.")
         }
-      )
+      ), Int)
     }
     App(func, args) => {
       // let func_name = <func> in
@@ -74,28 +100,38 @@ fn ast_to_knf(ctx : LocalEnv, syntax : Syntax) -> Knf {
         name_and_args.push((arg_names[i], args[i]))
       }
       
-      let init = match func {
+      let (init, typ) = match func {
         Var(str) => {
-          if(ctx[str] != None) { Apply(ctx[str].unwrap(), arg_names) }
+          if(ctx[str] != None) {
+            let (ret, ty) = ctx[str].unwrap()
+            (Apply(ret, arg_names), ty)
+          }
           else {
-            if (env.val.externals[str] != None) { ExternalFunctionApplication("minimbt_"+str, arg_names) }
+            let ty = env.val.externals[str]
+            if (ty != None) { (ExternalFunctionApplication("minimbt_"+str, arg_names), ty.unwrap()) }
             else { @util.die("KNF error: function not found.") }
           }
         }
-        App(_) as app => {
-          let app_name = env.val.new_name()
-          Let((app_name, Var({val: None})), ast_to_knf(ctx, app),
-            Apply(app_name, arg_names)
-          )
+        _ => {
+          let f_name = env.val.new_name()
+          let (ret, ty) = ast_to_knf(ctx, func)
+          ( Let( (f_name, ty), ret, Apply(f_name, arg_names) ), ty)
         }
-        // _ => @util.die("KNF error: application not valid.")
       }
       
-      name_and_args.fold( ~init,
-        fn { 
-          knf, (name, arg) => 
-            Let((name, Var({val: None})), ast_to_knf(ctx, arg), knf)
-        } )
+      let knf = 
+        name_and_args.fold( ~init,
+          fn { 
+            knf, (name, arg) => {
+              let (arg_knf, arg_ty) = ast_to_knf(ctx, arg)
+              Let((name, arg_ty), arg_knf, knf)
+            }
+          } )
+      
+      match typ{
+        Fun(_, ret) => (knf, ret)
+        _ => @util.die("KNF error: function type not valid.")
+      }
     }
     Get(expr, index) => {
       // let expr_name = <expr> in
@@ -103,11 +139,17 @@ fn ast_to_knf(ctx : LocalEnv, syntax : Syntax) -> Knf {
       // Get(expr_name, index_name)
       let expr_name = env.val.new_name()
       let index_name = env.val.new_name()
-      Let((expr_name, Var({val: None})), ast_to_knf(ctx, expr),
-        Let((index_name, Int), ast_to_knf(ctx, index),
-          Get(expr_name, index_name)
+      let (expr_ret, expr_ty) = ast_to_knf(ctx, expr)
+      let knf =
+        Let((expr_name, expr_ty), expr_ret,
+          Let((index_name, Int), ast_to_knf(ctx, index).0,
+            Get(expr_name, index_name)
+          )
         )
-      )
+      match expr_ty {
+        Array(ty) => (knf, ty)
+        _ => @util.die("KNF error: Get must have an array type.")
+      }
     }
     If(cond, then, els) => {
       // let cond_name = <cond> in
@@ -116,11 +158,16 @@ fn ast_to_knf(ctx : LocalEnv, syntax : Syntax) -> Knf {
       let cond_name = env.val.new_name()
       let true_name = env.val.new_name()
       
-      Let((cond_name, Bool), ast_to_knf(ctx, cond),
-        Let((true_name, Bool), Bool(true),
-          IfEq(cond_name, true_name, ast_to_knf(ctx, then), ast_to_knf(ctx, els)),
+      let (then_ret, then_ty) = ast_to_knf(ctx, then)
+      let (els_ret, els_ty) = ast_to_knf(ctx, els)
+      guard then_ty == els_ty else { @util.die("KNF error: If branches must have the same type. There is a problem with typechecking.") }
+      let knf =
+        Let((cond_name, Bool), ast_to_knf(ctx, cond).0,
+          Let((true_name, Bool), Bool(true),
+            IfEq(cond_name, true_name, then_ret, els_ret),
+          )
         )
-      )
+      (knf, then_ty)
     }
     Prim(a, b, op, ~kind) => {
       // let a_name = <a> in
@@ -129,23 +176,28 @@ fn ast_to_knf(ctx : LocalEnv, syntax : Syntax) -> Knf {
       let a_name = env.val.new_name()
       let b_name = env.val.new_name()
       
-      Let((a_name, Var({val: None})), ast_to_knf(ctx, a),
-        Let((b_name, Var({val: None})), ast_to_knf(ctx, b),
-          match (op, kind) {
-            (Add, Some(Int)) => Add(a_name, b_name)
-            (Sub, Some(Int)) => Sub(a_name, b_name)
-            (Mul, Some(Int)) => Mul(a_name, b_name)
-            (Div, Some(Int)) => Div(a_name, b_name)
-            (Add, Some(Double)) => FAdd(a_name, b_name)
-            (Sub, Some(Double)) => FSub(a_name, b_name)
-            (Mul, Some(Double)) => FMul(a_name, b_name)
-            (Div, Some(Double)) => FDiv(a_name, b_name)
-            _ => {
-              @util.die("KNF error: Prim must have a kind, there is a problem with typing.")
+      let (a_ret, a_ty) = ast_to_knf(ctx, a)
+      let (b_ret, b_ty) = ast_to_knf(ctx, b)
+      
+      let knf = 
+        Let((a_name, a_ty), a_ret,
+          Let((b_name, b_ty), b_ret,
+            match (op, kind) {
+              (Add, Some(Int)) => Add(a_name, b_name)
+              (Sub, Some(Int)) => Sub(a_name, b_name)
+              (Mul, Some(Int)) => Mul(a_name, b_name)
+              (Div, Some(Int)) => Div(a_name, b_name)
+              (Add, Some(Double)) => FAdd(a_name, b_name)
+              (Sub, Some(Double)) => FSub(a_name, b_name)
+              (Mul, Some(Double)) => FMul(a_name, b_name)
+              (Div, Some(Double)) => FDiv(a_name, b_name)
+              _ => {
+                @util.die("KNF error: Prim must have a kind, there is a problem with typing.")
+              }
             }
-          }
+          )
         )
-      )
+      (knf, a_ty)
     }
     Eq(a, b) => {
       // let a_name = <a> in
@@ -154,11 +206,15 @@ fn ast_to_knf(ctx : LocalEnv, syntax : Syntax) -> Knf {
       let a_name = env.val.new_name()
       let b_name = env.val.new_name()
       
-      Let((a_name, Var({val: None})), ast_to_knf(ctx, a),
-        Let((b_name, Var({val: None})), ast_to_knf(ctx, b),
-          IfEq(a_name, b_name, Bool(true), Bool(false))
+      let (a_ret, a_ty) = ast_to_knf(ctx, a)
+      let (b_ret, b_ty) = ast_to_knf(ctx, b)
+      let knf = 
+        Let((a_name, a_ty), a_ret,
+          Let((b_name, b_ty), b_ret,
+            IfEq(a_name, b_name, Bool(true), Bool(false))
+          )
         )
-      )
+      (knf, Bool)
     }
     LE(a, b) => {
       // let a_name = <a> in
@@ -167,18 +223,24 @@ fn ast_to_knf(ctx : LocalEnv, syntax : Syntax) -> Knf {
       let a_name = env.val.new_name()
       let b_name = env.val.new_name()
       
-      Let((a_name, Var({val: None})), ast_to_knf(ctx, a),
-        Let((b_name, Var({val: None})), ast_to_knf(ctx, b),
-          IfLe(a_name, b_name, Bool(true), Bool(false))
+      let (a_ret, a_ty) = ast_to_knf(ctx, a)
+      let (b_ret, b_ty) = ast_to_knf(ctx, b)
+      let knf = 
+        Let((a_name, a_ty), a_ret,
+          Let((b_name, b_ty), b_ret,
+            IfLe(a_name, b_name, Bool(true), Bool(false))
+          )
         )
-      )
+      (knf, Bool)
     }
     Let((str, ty), value, rest) => {
       // let name = <value> in <rest>
       let name = env.val.new_str_name(str)
-      let value_knf = ast_to_knf(ctx, value)
-      let new_ctx = ctx.add(str, name)
-      Let((name, ty), value_knf, ast_to_knf(new_ctx, rest))
+      let value_knf = ast_to_knf(ctx, value).0
+      let new_ctx = ctx.add(str, (name, clean(ty)))
+      
+      let (rest_knf, rest_ty) = ast_to_knf(new_ctx, rest)
+      (Let((name, clean(ty)), value_knf, rest_knf), rest_ty)
     }
     LetRec( {name: (str, ty), args, body}, rest) => {
       // let fun(x, y, z, ...) = {x..y..z..} in <body>
@@ -188,15 +250,19 @@ fn ast_to_knf(ctx : LocalEnv, syntax : Syntax) -> Knf {
       let mut new_ctx = ctx
       for arg in args {
         let arg_name = env.val.new_str_name(arg.0)
-        name_and_types.push((arg_name, arg.1))
-        new_ctx = new_ctx.add(arg.0, arg_name)
+        name_and_types.push((arg_name, clean(arg.1)))
+        new_ctx = new_ctx.add(arg.0, (arg_name, clean(arg.1)))
       }
-      new_ctx = new_ctx.add(str, name)
+      new_ctx = new_ctx.add(str, (name, clean(ty)))
       let body_knf = ast_to_knf(new_ctx, body)
       
-      let ctx_with_f = ctx.add(str, name)
-      LetRec( { name, ty, args: name_and_types, 
-          body: body_knf }, ast_to_knf(ctx_with_f, rest) )
+      let ctx_with_f = ctx.add(str, (name, clean(ty)))
+      
+      let (rest_ret, rest_ty) = ast_to_knf(ctx_with_f, rest)
+      let knf = 
+        LetRec( { name, ty: clean(ty), args: name_and_types, 
+            body: body_knf.0 }, rest_ret )
+      (knf, rest_ty)
     }
     
     LetTuple(elements, value, rest) => {
@@ -211,11 +277,11 @@ fn ast_to_knf(ctx : LocalEnv, syntax : Syntax) -> Knf {
       for i in 0..<elements.length() {
         let element_str = elements[i].0
         let element_name = env.val.new_str_name(element_str)
-        new_ctx = new_ctx.add(element_str, element_name)
-        element_names.push( (element_name, elements[i].1) )
+        new_ctx = new_ctx.add(element_str, (element_name, clean(elements[i].1)))
+        element_names.push( (element_name, clean(elements[i].1)) )
       }
-      LetTuple(element_names, value_knf, ast_to_knf(new_ctx, rest))
-      
+      let (rest_ret, rest_ty) = ast_to_knf(new_ctx, rest)
+      (LetTuple(element_names, value_knf.0, rest_ret), rest_ty)
     }
     
     Put(a, b, c, rest) => {
@@ -227,13 +293,18 @@ fn ast_to_knf(ctx : LocalEnv, syntax : Syntax) -> Knf {
       let b_name = env.val.new_name()
       let c_name = env.val.new_name()
       
-      Let((a_name, Var({val: None})), ast_to_knf(ctx, a),
-        Let((b_name, Var({val: None})), ast_to_knf(ctx, b),
-          Let((c_name, Var({val: None})), ast_to_knf(ctx, c),
-            Put(a_name, b_name, c_name, ast_to_knf(ctx, rest))
+      let (a_ret, a_ty) = ast_to_knf(ctx, a)
+      let (c_ret, c_ty) = ast_to_knf(ctx, c)
+      let (rest_ret, rest_ty) = ast_to_knf(ctx, rest)
+      let knf = 
+        Let((a_name, a_ty), a_ret,
+          Let((b_name, Int), ast_to_knf(ctx, b).0,
+            Let((c_name, c_ty), c_ret,
+              Put(a_name, b_name, c_name, rest_ret)
+            )
           )
         )
-      )
+      (knf, rest_ty)
     }
   } 
 }
@@ -242,37 +313,37 @@ test "If Conversion" {
   let ctx = LocalEnv::new()
   
   // Test If conversion
-  println(ast_to_knf(ctx, If(Bool(true), Int(1), Int(0))).to_pretty_print())
+  println(ast_to_knf(ctx, If(Bool(true), Int(1), Int(0))).0.to_pretty_print())
 }
 test "Let Conversion" {
   let ctx = LocalEnv::new()
   
   // Test Let conversion
-  println(ast_to_knf(ctx, Let(("x", Type::Int), Int(10), Var("x"))).to_pretty_print())
+  println(ast_to_knf(ctx, Let(("x", Type::Int), Int(10), Var("x"))).0.to_pretty_print())
 }
 
 test "Prim Conversion" {
   let ctx = LocalEnv::new()
   
   // Test Prim conversion
-  println(ast_to_knf(ctx, Prim(Double(5), Double(3), Div, kind=Some(Double))).to_pretty_print())
+  println(ast_to_knf(ctx, Prim(Double(5), Double(3), Div, kind=Some(Double))).0.to_pretty_print())
 }
 test "App Conversion" {
-  let ctx = LocalEnv::new()
+  let ctx = LocalEnv::new().add("f", (env.val.new_str_name("f"), Type::Fun([Int], Unit)))
   // Test App conversion
-  println(ast_to_knf(ctx, App(Var("f"), [Int(1), Int(2)])).to_pretty_print())
+  println(ast_to_knf(ctx, App(Var("f"), [Int(1), Int(2)])).0.to_pretty_print())
 }
 test "Array Conversion" {
   let ctx = LocalEnv::new()
   
   // Test Array conversion
-  println(ast_to_knf(ctx, Array(Int(1), Int(5))).to_pretty_print())
+  println(ast_to_knf(ctx, Array(Int(1), Int(5))).0.to_pretty_print())
 }
 test "Neg Conversion" {
   let ctx = LocalEnv::new()
   
   // Test Neg conversion
-  println(ast_to_knf(ctx, Neg(Int(10), kind=Some(Int))).to_pretty_print())
+  println(ast_to_knf(ctx, Neg(Int(10), kind=Some(Int))).0.to_pretty_print())
 }
 
 test "LetTuple Conversion" {
@@ -282,33 +353,33 @@ test "LetTuple Conversion" {
   let tuple_elements = [("x", Type::Int), ("y", Type::Bool)]
   let tuple_exprs = [Syntax::Int(1), Syntax::Bool(true)]
   let st = Syntax::LetTuple(tuple_elements, Tuple(tuple_exprs), Var("x"))
-  println(ast_to_knf(ctx, st).to_pretty_print());
+  println(ast_to_knf(ctx, st).0.to_pretty_print());
 }
 test "Variable and Tuple Conversion" {
   // Test Tuple conversion
   let ctx = LocalEnv::new()
   let tuple_elements = [Syntax::Int(1), Bool(false), Double(2.71)]
-  println(ast_to_knf(ctx, Tuple(tuple_elements)).to_pretty_print())
+  println(ast_to_knf(ctx, Tuple(tuple_elements)).0.to_pretty_print())
 }
 test "Variable Conversion" {
   let var_name = env.val.new_str_name("x")
-  let ctx = LocalEnv::new().add("x", var_name)
-  println(ast_to_knf(ctx, Var("x")).to_pretty_print())
+  let ctx = LocalEnv::new().add("x", (var_name, Type::Int))
+  println(ast_to_knf(ctx, Var("x")).0.to_pretty_print())
 }
 test "Basic Syntax Conversion" {
   let ctx = LocalEnv::new()
   
   // Test Unit conversion
-  inspect!(ast_to_knf(ctx, Unit), content="Unit")
+  inspect!(ast_to_knf(ctx, Unit), content="(Unit, Unit)")
   
   // Test Bool conversion
-  inspect!(ast_to_knf(ctx, Bool(true)), content="Bool(true)")
+  inspect!(ast_to_knf(ctx, Bool(true)), content="(Bool(true), Bool)")
   
   // Test Int conversion
-  inspect!(ast_to_knf(ctx, Int(42)), content="Int(42)")
+  inspect!(ast_to_knf(ctx, Int(42)), content="(Int(42), Int)")
   
   // Test Double conversion
-  inspect!(ast_to_knf(ctx, Double(3.14)), content="Double(3.14)")
+  inspect!(ast_to_knf(ctx, Double(3.14)), content="(Double(3.14), Double)")
 }
 
 /// Preprocesses the syntax tree, extracting the contents of functions `main` and `init` to top-level.
@@ -330,5 +401,5 @@ fn KnfEnv::syntax_preprocess(e : Syntax, main: Syntax?) -> Syntax {
 pub fn KnfEnv::to_knf(self : KnfEnv, syntax : @types.Syntax) -> Knf {
   env.val = self
   let new_syntax = syntax_preprocess(syntax, None)
-  ast_to_knf(LocalEnv::new(), new_syntax)
+  ast_to_knf(LocalEnv::new(), new_syntax).0
 }

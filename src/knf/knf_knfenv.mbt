@@ -1,4 +1,4 @@
-pub typealias LocalEnv = @immut/hashmap.T[String, Name]
+pub typealias LocalEnv = @immut/hashmap.T[String, (Name, Type)]
 
 struct KnfEnv {
   mut counter : Int
