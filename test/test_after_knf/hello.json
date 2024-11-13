@@ -1,0 +1,1 @@
+["Let",["a.1","Int"],["Int",1],["Let",["b.2","Int"],["Int",1],["Let",["_3","Int"],["Let",["_4","Int"],["Var","a.1"],["Let",["_5","Int"],["Var","b.2"],["Add","_4","_5"]]],["ExternalFunctionApplication","minimbt_print_int",["_3"]]]]]
