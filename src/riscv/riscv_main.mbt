@@ -1,7 +1,7 @@
 // 由于数组长度是可变的，Tuple 和 Array 数据需要手动管理内存；其它类型数据直接存在栈上。
 // Tuple 格式： size, [data1], [data2], ...
 // Array 格式： size, [data1], [data2], ...
-// Closure 格式： size, fv1, fv2, ...
+// Closure 格式： size, ptr, fv1, fv2, ...
 // 调用栈头指针为 fp，向下增长。数据区是另一个栈（然而并不会退栈），头指针为 sp，向上增长
 // 在定义变量时 fp 不会增长，而会让 global_offset 增长（实际上是减小）；在函数调用时一次性令 fp += global_offset，然后 global_offset = 0 （似乎叫栈指针省略）
 // 在加入数据时 sp 会增长。fp(+global_offset) 会在对应变量处记录数据地址
@@ -73,25 +73,24 @@ fn data_copy(pos: Int, ty: LowType, ~internal: Bool) -> AsmList {
         ]
       }
     }
-    Tuple(_) | Array(_) | Closure(_)=> {
+    Tuple(_) | Array(_) | Closure(_) | ClosureFn(_) => {
       [
         Lw(T0, {base: Fp, offset: pos}), // 加载地址
         Lw(T1, {base: T0, offset: 0}), // 加载数据长度
         
-        Addi(T0, T0, 8),
-        Addi(Sp, Sp, 8),
         Lw(T2, {base: T0, offset: 0}),
         Sw(T2, {base: Sp, offset: 0}),
+        Addi(T0, T0, 8),
+        Addi(Sp, Sp, 8),
         Addi(T1, T1, -8),
         Bne(T1, Zero, -20),
-        
-        Addi(Sp, Sp, 8)
       ]
     }
     _ => @util.die("Asm error: data_copy not implemented.")
   }
 }
 
+// 会自动将 reg 移动到末尾
 fn data_copy_reg(reg: Reg, ty: LowType, ~internal: Bool) -> AsmList {
   match ty {
     Unit | Bool | Int => {
@@ -132,22 +131,17 @@ fn data_copy_reg(reg: Reg, ty: LowType, ~internal: Bool) -> AsmList {
     }
     Tuple(_) | Array(_) | Closure(_)=> {
       [
-        Lw(T0, {base: reg, offset: 0}), // 加载地址
-        Lw(T1, {base: T0, offset: 0}), // 加载数据长度
+        Lw(T1, {base: reg, offset: 0}), // 加载数据长度
         
-        Addi(T0, T0, 8),
-        Addi(Sp, Sp, 8),
-        Addi(reg, reg, 8),
-        Lw(T2, {base: T0, offset: 0}),
+        Lw(T2, {base: reg, offset: 0}),
         Sw(T2, {base: Sp, offset: 0}),
+        Addi(reg, reg, 8),
+        Addi(Sp, Sp, 8),
         Addi(T1, T1, -8),
         Bne(T1, Zero, -20),
-        
-        Addi(Sp, Sp, 8),
-        Addi(reg, reg, 8),
       ]
     }
-    _ => @util.die("Asm error: data_copy not implemented.")
+    _ => @util.die("Asm error: data_copy_reg not implemented.")
   }
 }
 
@@ -170,16 +164,16 @@ fn data_modify(pos: Int, ty: LowType, reg: Reg) -> AsmList {
         Lw(T0, {base: Fp, offset: pos}), // 加载地址
         Lw(T1, {base: T0, offset: 0}), // 加载数据长度
         
-        Addi(T0, T0, 8),
-        Addi(reg, reg, 8),
         Lw(T2, {base: T0, offset: 0}),
         Sw(T2, {base: reg, offset: 0}),
+        Addi(T0, T0, 8),
+        Addi(reg, reg, 8),
         Addi(T1, T1, -8),
         Bne(T1, Zero, -20),
         
       ]
     }
-    _ => @util.die("Asm error: data_copy not implemented.")
+    _ => @util.die("Asm error: data_modify not implemented.")
   }
 }
 
@@ -211,21 +205,57 @@ pub fn emit(
     // 需要为所有参数和自由变量预留接口(内存地址)
     // 在程序中创建闭包时，将自由变量的值写入内存
     // 在调用闭包时，提取自由变量的值，然后和参数一起写入内存并调用
-    // 栈顶往上的（参数+自由变量）个数 位置存（参数+自由变量）的地址
+    // 调用格式： [ra], arg0, arg1, ..., agrk, closure_ptr, [fv1, fv2, ..., fvn]
+    // 首先将 closure_ptr 内的自由变量进行处理展开
     // 执行完成后 a0 是 返回值 的地址
     global_offset.val = 0
+    let asm: AsmList = []
     let mut ctx: LocalEnv = LocalEnv::new()
-    for arg in concat(f.args, f.formal_free_vars) {
+    
+    asm.appendx([ Sw(Ra, {base: Fp, offset: global_offset.val}) ]) // 保存 ra
+    global_offset.val -= 8
+    
+    for arg in f.args {
       ctx = ctx.add(arg.0, (global_offset.val, arg.1))
-      global_offset.val += 1
+      global_offset.val -= 8
+    }
+    
+    asm.appendx([
+      Lw(S1, {base: Fp, offset: global_offset.val}),
+      Addi(S1, S1, 16) // 闭包块上的指针，逐个提取每个自由变量的地址。初始化为 2 bytes 是因为前两个是 size 和 ptr
+    ])
+    
+    ctx = ctx.add(Name::from_string?(f.name._).unwrap(), (global_offset.val, f.ty))
+    global_offset.val -= 8 // 为闭包块的指针预留空间
+    for arg in f.formal_free_vars {
+      match arg.1 {
+        Unit | Bool | Int | Double => {
+          asm.appendx([
+            Lw(T0, {base: S1, offset: 0}),
+            Sw(T0, {base: Fp, offset: global_offset.val}),
+            Addi(S1, S1, 8),
+          ])
+        }
+        Tuple(_) | Array(_) | Closure(_) | ClosureFn(_) => {
+          asm.appendx([
+            Sw(S1, {base: Fp, offset: global_offset.val}),
+            Lw(T0, {base: S1, offset: 0}), // 加载长度
+            Add(S1, S1, T0)
+          ])
+        }
+        _ => @util.die("Asm error: init not implemented.")
+      }
+      
+      ctx = ctx.add(arg.0, (global_offset.val, arg.1))
+      global_offset.val -= 8
     }
     
     function_asms.push(
-      {name: f.name._, export: false, body: closure_to_riscv(f.name._, env, ctx, f.body) + [Jr(Ra)] })
+      {name: f.name._, export: false, body: asm + closure_to_riscv(env, ctx, f.body) + [Lw(Ra, {base: Fp, offset: 0}), Jr(Ra)] })
   }
   
   global_offset.val = 0
-  let body_asm = closure_to_riscv("_minimbt_main_", env, LocalEnv::new(), input.body)
+  let body_asm = closure_to_riscv(env, LocalEnv::new(), input.body)
   function_asms.push(
     {name: "minimbt_main", export: true, body: init+body_asm })
   
@@ -241,7 +271,6 @@ pub fn emit(
 }
 
 fn closure_to_riscv(
-  func_name : String,
   env : InterpreterEnv,
   ctx : LocalEnv,
   expr : Expr
@@ -332,7 +361,6 @@ fn closure_to_riscv(
         Addi(Sp, Sp, 8), // 预留存放长度的地址
       ]
       
-      println("? \{y} \{y_typ}")
       match y_typ {
         Unit | Bool | Int | Double => {
           asm.appendx( [Li(T1, "8")] )
@@ -412,11 +440,13 @@ fn closure_to_riscv(
             Beq(T0, T1, 8),
             J("ifeq_else_\{label_counter.val}"),
         ]
-        asm.appendx(closure_to_riscv(func_name, env, ctx, then))
+        let global_offset_backup = global_offset.val
+        asm.appendx(closure_to_riscv(env, ctx, then))
         asm.appendx( [J("ifeq_end_\{label_counter.val}")] )
         
+        global_offset.val = global_offset_backup
         asm.appendx( [Label("ifeq_else_\{label_counter.val}")] )
-        asm.appendx(closure_to_riscv(func_name, env, ctx, els))
+        asm.appendx(closure_to_riscv(env, ctx, els))
         
         asm.appendx( [Label("ifeq_end_\{label_counter.val}")] )
         
@@ -434,11 +464,13 @@ fn closure_to_riscv(
             Ble(T0, T1, 8),
             J("ifeq_else_\{label_counter.val}"),
         ]
-        asm.appendx(closure_to_riscv(func_name, env, ctx, then))
+        let global_offset_backup = global_offset.val
+        asm.appendx(closure_to_riscv(env, ctx, then))
         asm.appendx( [J("ifeq_end_\{label_counter.val}")] )
         
+        global_offset.val = global_offset_backup
         asm.appendx( [Label("ifeq_else_\{label_counter.val}")] )
-        asm.appendx(closure_to_riscv(func_name, env, ctx, els))
+        asm.appendx(closure_to_riscv(env, ctx, els))
         
         asm.appendx( [Label("ifeq_end_\{label_counter.val}")] )
         
@@ -447,15 +479,31 @@ fn closure_to_riscv(
     }
     
     Let((x, ty), expr, rest) => {
-      let asm = closure_to_riscv(func_name, env, ctx, expr)
-      asm.appendx( [Sw(A0, {base: Fp, offset: global_offset.val})] )
+      let asm = closure_to_riscv(env, ctx, expr)
+      
+      if x.name != None {
+        match ty {
+          Unit | Bool | Int | Double => {
+            asm.appendx( [ Sw(A0, {base: Fp, offset: global_offset.val}) ])
+          }
+          Tuple(_) | Array(_) | Closure(_) => {
+            asm.appendx( [ Sw(Sp, {base: Fp, offset: global_offset.val} ) ])
+            asm.appendx(data_copy_reg(A0, ty, internal = true))
+          }
+          _ => @util.die("Asm error: ArrayGet not implemented.")
+        }
+      }
+      else {
+        asm.appendx( [ Sw(A0, {base: Fp, offset: global_offset.val}) ])
+      }
+      
       let new_ctx = ctx.add(x, (global_offset.val, ty))
       global_offset.val -= 8
       
-      asm + closure_to_riscv(func_name, env, new_ctx, rest)
+      asm + closure_to_riscv(env, new_ctx, rest)
     }
     LetTuple(xts, expr, rest) => {
-      let asm = AsmList([Comment("LetTuple \{expr}")]) + closure_to_riscv(func_name, env, ctx, expr)
+      let asm = AsmList([Comment("LetTuple \{expr}")]) + closure_to_riscv(env, ctx, expr)
       let mut new_ctx = ctx
       
       asm.appendx([
@@ -466,10 +514,9 @@ fn closure_to_riscv(
         let (x, ty) = xt
         new_ctx = new_ctx.add(x, (global_offset.val, ty))
         asm.appendx( data_copy_reg(S1, ty, internal = false) )
-        
       }
       
-      asm + closure_to_riscv(func_name, env, new_ctx, rest)
+      asm + closure_to_riscv(env, new_ctx, rest)
     }
     
     ArrayGet(x, y) => {
@@ -484,14 +531,19 @@ fn closure_to_riscv(
         Lw(T1, {base: Fp, offset: y_pos}), // 加载索引
       ]
       
-      match y_typ {
+      let x_typ_unwrap = match x_typ {
+        Array(typ) => typ
+        _ => @util.die("Asm error: ArrayGet not implemented.")
+      }
+      
+      match x_typ_unwrap {
         Unit | Bool | Int | Double => {
           asm.appendx( [Li(T2, "8")] )
         }
         Tuple(_) | Array(_) | Closure(_)=> {
           asm.appendx([
-            Lw(T3, {base: Fp, offset: y_pos}),
-            Lw(T2, {base: T3, offset: 0}),
+            Lw(T3, {base: Fp, offset: x_pos}),
+            Lw(T2, {base: T3, offset: 8}),
           ])
         }
         _ => @util.die("Asm error: MakeArray not implemented.")
@@ -500,21 +552,13 @@ fn closure_to_riscv(
       asm.appendx([
         Addi(T0, T0, 8),
         Mul(T3, T1, T2), // 计算偏移
-        Add(T0, T0, T3), // 计算偏移后的地址
+        Add(S1, T0, T3), // 计算偏移后的地址
       ])
       
-      match x_typ {
-        Array(typ) => {
-          match typ {
-              Unit | Bool | Int => asm.appendx( [ Lw(A0, {base: T0, offset: 0}) ] )
-              Double => asm.appendx( [ Fld(Fa0, {base: T0, offset: 0}) ] )
-              Tuple(_) | Array(_) | Closure(_) => {
-                asm.appendx( [ Mv(A0, Sp) ] )
-                asm.appendx( data_copy_reg(T0, typ, internal = true) )
-              }
-              _ => @util.die("Asm error: ArrayGet not implemented.")
-          }
-        }
+      match x_typ_unwrap {
+        Unit | Bool | Int => asm.appendx( [ Lw(A0, {base: S1, offset: 0}) ] )
+        Double => asm.appendx( [ Fld(Fa0, {base: S1, offset: 0}) ] )
+        Tuple(_) | Array(_) | Closure(_) => { asm.appendx( [ Mv(A0, S1) ] ) }
         _ => @util.die("Asm error: ArrayGet not implemented.")
       }
       
@@ -528,37 +572,60 @@ fn closure_to_riscv(
       guard(y_typ == Int) else { @util.die("Asm error: Put arg must be Int.") }
       
       let asm: AsmList = [
+        Comment("ArrayPut \{expr}"),
+        
         Lw(T0, {base: Fp, offset: x_pos}), // 加载地址
         Lw(T1, {base: Fp, offset: y_pos}), // 加载索引
-        
-        Addi(T0, T0, 8),
-        Lw(T2, {base: T0, offset: 0}), // 子元素长度
-        Mul(T3, T1, T2), // 计算偏移
-        
-        Add(T0, T0, T3), // 计算偏移后的地址
       ]
-      asm.appendx(data_modify(z_pos, z_typ, T0))
       
-      asm + closure_to_riscv(func_name, env, ctx, rest)
+      let x_typ_unwrap = match x_typ {
+        Array(typ) => typ
+        _ => @util.die("Asm error: ArrayGet not implemented.")
+      }
+      
+      match x_typ_unwrap {
+        Unit | Bool | Int | Double => {
+          asm.appendx( [Li(T2, "8")] )
+        }
+        Tuple(_) | Array(_) | Closure(_)=> {
+          asm.appendx([
+            Lw(T3, {base: Fp, offset: x_pos}),
+            Lw(T2, {base: T3, offset: 8}),
+          ])
+        }
+        _ => @util.die("Asm error: MakeArray not implemented.")
+      }
+      
+      asm.appendx([
+        Addi(T0, T0, 8),
+        Mul(T3, T1, T2), // 计算偏移
+        Add(S1, T0, T3), // 计算偏移后的地址
+      ])
+      asm.appendx(data_modify(z_pos, z_typ, S1))
+      
+      asm.appendx( [Comment("ArrayPut end \{expr}")] )
+      asm + closure_to_riscv(env, ctx, rest)
     }
     
-    
     MakeClosure((name, _), c, rest) => {
-      let func = env.functions.get(name.to_string()).unwrap()
+      let fun = env.functions.get(name.to_string()).unwrap()
       let asm: AsmList = [
+        Comment("MakeClosure \{name}"),
         Mv(S1, Sp), // 存起始地址
-        Addi(Sp, Sp, 8), // 预留存放长度的地址
+        Addi(Sp, Sp, 16), // 预留存放长度和指针的地址
         
-        Li(S2, "8"),
+        La(T0, name.to_string()),
+        Sw(T0, {base: Sp, offset: -8}), // 存函数指针
+        Li(S2, "16"),
       ]
-      for fv in func.formal_free_vars {
+      for fv in fun.formal_free_vars {
         let (pos, typ) = find(ctx, fv.0)
         
         match typ {
           Unit | Bool | Int | Double => {
             asm.appendx([Addi(S2, S2, 8)])
           }
-          Tuple(_) | Array(_) | Closure(_) => {
+          Tuple(_) | Array(_) | Closure(_) | ClosureFn(_) => {
             asm.appendx([
               Lw(T0, {base: Fp, offset: pos}),
               Lw(T1, {base: T0, offset: 0}),
@@ -574,51 +641,54 @@ fn closure_to_riscv(
         Sw(S2, {base: S1, offset: 0}), // 将计算出的长度放入内存
         Sw(S1, {base: Fp, offset: global_offset.val})
       ])
-      let new_ctx = ctx.add(name, (global_offset.val, Closure(func.formal_free_vars)))
+      let new_ctx = ctx.add(name, (global_offset.val, Closure(fun.formal_free_vars)))
       global_offset.val -= 8
       
-      asm + closure_to_riscv(func_name, env, new_ctx, rest)
+      asm.appendx([Comment("MakeClosure End \{name}")])
+      asm + closure_to_riscv(env, new_ctx, rest)
     }
     
     CallClosure(name, args) => {
       let asm: AsmList = [
-        Mv(S1, Fp), // 存起始地址
-        Addi(Fp, Fp, global_offset.val), // 栈指针省略
+        Comment("CallClosure \{name} \{args}"),
       ]
+      let global_offset_backup = global_offset.val
+      
+      global_offset.val -= 8 // 预留 ra 的位置
+      
       for arg in args {
         let (pos, typ) = find(ctx, arg)
+        match typ {
+          Unit | Bool | Int | Double => ()
+          Tuple(_) | Array(_) | Closure(_) => {
+            asm.appendx([
+              Lw(T0, {base: Fp, offset: pos}),
+              Sw(T0, {base: Fp, offset: global_offset.val}),
+            ])
+            global_offset.val -= 8
+          }
+          _ => @util.die("Asm error: CallClosure not implemented.")
+        }
         asm.appendx(data_copy(pos, typ, internal = false))
       }
       
-      let fvs = 
-        if func_name == name.to_string() {
-          // 如果是递归调用，直接自己的自由变量传入
-          asm.appendx( [ Lw(S2, {base: S1, offset: 0}) ] )
-          env.functions.get(name.to_string()).unwrap().formal_free_vars
-        }
-        else{
-          // 否则，找到闭包并传入自由变量
-          let (pos, typ) = find(ctx, name)
-          asm.appendx( [ Lw(S2, {base: S1, offset: pos}) ] ) // 加载闭包地址
-          
-          match typ {
-            Closure(fvs) => fvs
-            _ => @util.die("Asm error: CallClosure not implemented.")
-          }
-        }
+      // 不需要知道自由变量，因为在创建闭包时已经写入了内存
+      // 直接把整个闭包复制到栈上
       
-      asm.appendx( [ Addi(S2, S2, 8) ] ) // 第一位是长度
-      for xt in fvs {
-        let (_, ty) = xt
-        asm.appendx( data_copy_reg(S2, ty, internal = false) )
-      }
+      let (pos, _) = find(ctx, name)
       
       asm.appendx([
-        Call(name.to_string()),
-        
-        Addi(Fp, Fp, -global_offset.val), // 栈指针省略
+        Lw(T0, {base: Fp, offset: pos}), // 加载闭包地址
+        Lw(S1, {base: T0, offset: 8}), // 闭包记录的函数指针
+        Sw(T0, {base: Fp, offset: global_offset.val}), // 复制闭包到栈上
+          
+        Addi(Fp, Fp, global_offset_backup), // 栈指针省略
+        Jalr(Ra, {base: S1, offset: 0}),
+        Addi(Fp, Fp, -global_offset_backup),
       ])
+      global_offset.val = global_offset_backup
       
+      asm.appendx([Comment("CallClosure End \{name} \{args}")])
       asm
     }
     CallDirect(name, args) => {
@@ -632,12 +702,12 @@ fn closure_to_riscv(
           _ => @util.die("Asm error: CallDirect not implemented.")
         }
       }
-      // asm + [Call(name.to_string())]
-      match name._ {
-        "minimbt_print_int" => asm + [Li(A7, "1"), Ecall]
-        "minimbt_print_endline" => asm + [Li(A7, "11"), Li(A0, "10"), Ecall]
-        _ => @util.die("Asm error: CallDirect not implemented.")
-      }
+      asm + [Call(name.to_string())]
+      // match name._ {
+      //   "minimbt_print_int" => asm + [Li(A7, "1"), Ecall]
+      //   "minimbt_print_endline" => asm + [Li(A7, "11"), Li(A0, "10"), Ecall]
+      //   _ => @util.die("Asm error: CallDirect not implemented.")
+      // }
     }
     
   }

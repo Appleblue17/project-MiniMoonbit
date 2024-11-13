@@ -30,7 +30,7 @@ test "adder" {
   let dummy_env = Map::new()
   
   let input = Knf::from_json!(@json.parse!(
-    #|["LetRec",{"name":"make_adder.1","ty":["Fun",["Int"],["Fun",["Int"],"Int"]],"args":[["x.2","Int"]],"body":["LetRec",{"name":"adder.3","ty":["Fun",["Int"],"Int"],"args":[["y.4","Int"]],"body":["Let",["_5",["Var","None"]],["Var","x.2"],["Let",["_6",["Var","None"]],["Var","y.4"],["Add","_5","_6"]]]},["Var","adder.3"]]},["Let",["_5",["Var","None"]],["Let",["_6",["Var","None"]],["Int",7],["Apply","_7",["_6"]]],["ExternalFunctionApplication","minimbt_print_int",["_5"]]]]
+    #|["LetRec",{"name":"make_adder.1","ty":["Fun",["Int"],["Fun",["Int"],"Int"]],"args":[["x.2","Int"]],"body":["LetRec",{"name":"adder.3","ty":["Fun",["Int"],"Int"],"args":[["y.4","Int"]],"body":["Let",["_5",["Var","None"]],["Var","x.2"],["Let",["_6",["Var","None"]],["Var","y.4"],["Add","_5","_6"]]]},["Var","adder.3"]]},["Let",["_7",["Var","None"]],["Let",["_8",["Var","None"]],["Int",7],["Let",["_9",["Var","None"]],["Let",["_10",["Var","None"]],["Int",3],["Apply","make_adder.1",["_10"]]],["Apply","_9",["_8"]]]],["ExternalFunctionApplication","minimbt_print_int",["_7"]]]]
   ))
   println(input.to_pretty_print())
   println("\n\n")

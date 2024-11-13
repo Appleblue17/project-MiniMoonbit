@@ -249,7 +249,10 @@ impl Show for RvAsm with output(self, logger) {
       logger.write_string("j ")
       logger.write_string(label.0)
     }
-    Jalr(rd, mem) => write2mem(logger, "jalr", rd, mem)
+    Jalr(rd, mem) => {
+      let (reg, imm) = match mem { {base: reg, offset: imm} => (reg, imm) }
+      write2imm(logger, "jalr", rd, reg, imm)
+    }
     Jr(rs1) => {
       logger.write_string("jr ")
       Show::output(rs1, logger)
