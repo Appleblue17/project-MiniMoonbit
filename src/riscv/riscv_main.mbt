@@ -45,8 +45,8 @@ fn data_copy(pos: Int, ty: LowType, ~internal: Bool) -> AsmList {
       if internal {
         [
           Lw(T0, {base: Fp, offset: pos}), 
-          Sw(T0, {base: Sp, offset: 0}),
-          Addi(Sp, Sp, 8)
+          Sw(T0, {base: S3, offset: 0}),
+          Addi(S3, S3, 8)
         ]
       }
       else {
@@ -61,8 +61,8 @@ fn data_copy(pos: Int, ty: LowType, ~internal: Bool) -> AsmList {
       if internal {
         [
           Fld(Ft0, {base: Fp, offset: pos}), 
-          Fsd(Ft0, {base: Sp, offset: 0}),
-          Addi(Sp, Sp, 8)
+          Fsd(Ft0, {base: S3, offset: 0}),
+          Addi(S3, S3, 8)
         ]
       }
       else {
@@ -74,16 +74,18 @@ fn data_copy(pos: Int, ty: LowType, ~internal: Bool) -> AsmList {
       }
     }
     Tuple(_) | Array(_) | Closure(_) | ClosureFn(_) => {
+      label_counter.val += 1
       [
         Lw(T0, {base: Fp, offset: pos}), // 加载地址
         Lw(T1, {base: T0, offset: 0}), // 加载数据长度
         
+        Label("data_copy_\{label_counter.val}"),
         Lw(T2, {base: T0, offset: 0}),
-        Sw(T2, {base: Sp, offset: 0}),
+        Sw(T2, {base: S3, offset: 0}),
         Addi(T0, T0, 8),
-        Addi(Sp, Sp, 8),
+        Addi(S3, S3, 8),
         Addi(T1, T1, -8),
-        Bne(T1, Zero, -20),
+        Bne(T1, Zero, "data_copy_\{label_counter.val}"),
       ]
     }
     _ => @util.die("Asm error: data_copy not implemented.")
@@ -97,8 +99,8 @@ fn data_copy_reg(reg: Reg, ty: LowType, ~internal: Bool) -> AsmList {
       if internal {
         [
           Lw(T0, {base: reg, offset: 0}), 
-          Sw(T0, {base: Sp, offset: 0}),
-          Addi(Sp, Sp, 8),
+          Sw(T0, {base: S3, offset: 0}),
+          Addi(S3, S3, 8),
           Addi(reg, reg, 8),
         ]
       }
@@ -115,8 +117,8 @@ fn data_copy_reg(reg: Reg, ty: LowType, ~internal: Bool) -> AsmList {
       if internal {
         [
           Fld(Ft0, {base: reg, offset: 0}), 
-          Fsd(Ft0, {base: Sp, offset: 0}),
-          Addi(Sp, Sp, 8),
+          Fsd(Ft0, {base: S3, offset: 0}),
+          Addi(S3, S3, 8),
           Addi(reg, reg, 8),
         ]
       }
@@ -130,15 +132,17 @@ fn data_copy_reg(reg: Reg, ty: LowType, ~internal: Bool) -> AsmList {
       }
     }
     Tuple(_) | Array(_) | Closure(_)=> {
+      label_counter.val += 1
       [
         Lw(T1, {base: reg, offset: 0}), // 加载数据长度
         
+        Label("data_copy_reg_loop_\{label_counter.val}"),
         Lw(T2, {base: reg, offset: 0}),
-        Sw(T2, {base: Sp, offset: 0}),
+        Sw(T2, {base: S3, offset: 0}),
         Addi(reg, reg, 8),
-        Addi(Sp, Sp, 8),
+        Addi(S3, S3, 8),
         Addi(T1, T1, -8),
-        Bne(T1, Zero, -20),
+        Bne(T1, Zero, "data_copy_reg_loop_\{label_counter.val}"),
       ]
     }
     _ => @util.die("Asm error: data_copy_reg not implemented.")
@@ -160,16 +164,18 @@ fn data_modify(pos: Int, ty: LowType, reg: Reg) -> AsmList {
       ]
     }
     Tuple(_) | Array(_) | Closure(_)=> {
+      label_counter.val += 1
       [
         Lw(T0, {base: Fp, offset: pos}), // 加载地址
         Lw(T1, {base: T0, offset: 0}), // 加载数据长度
         
+        Label("data_modify_loop_\{label_counter.val}"),
         Lw(T2, {base: T0, offset: 0}),
         Sw(T2, {base: reg, offset: 0}),
         Addi(T0, T0, 8),
         Addi(reg, reg, 8),
         Addi(T1, T1, -8),
-        Bne(T1, Zero, -20),
+        Bne(T1, Zero, "data_modify_loop_\{label_counter.val}"),
         
       ]
     }
@@ -193,13 +199,24 @@ pub fn emit(
     env.functions.set(f.name._, f)
   }
   
-  // 初始化 sp 和 fp，sp = fp + 1
+  // 初始化 sp 和 fp，sp = fp + 8
+  // let init: AsmList = [
+  //   Li(Fp, "0x0ffffff8"),
+  //   Li(S3, "0x10000000"),
+  // ]
+  
   let init: AsmList = [
-    Li(Fp, "0x0ffffff8"),
-    Li(Sp, "0x10000000"),
+    Li(T0, "0x100000"), // 申请 2MB 内存
+    Add(A0, T0, T0),
+    Call("minimbt_malloc"),
+    Add(S3, A0, T0), // 申请的内存地址（中间）
+    Addi(Fp, S3, -8)
   ]
   
   let function_asms = []
+  // let function_asms = [
+  //     {name: "_start", export: false, body: [Call("minimbt_main")] } ]
+  
   for f in input.fundefs {
     // 这里是所有闭包的定义
     // 需要为所有参数和自由变量预留接口(内存地址)
@@ -326,9 +343,9 @@ fn closure_to_riscv(
     MakeTuple(xs) => {
       let asm: AsmList = [
         Comment("MakeTuple \{expr}"),
-        Mv(S1, Sp), // 存起始地址
+        Mv(S1, S3), // 存起始地址
         Li(S2, "8"), // 用于计算长度
-        Addi(Sp, Sp, 8) // 预留存放长度的地址
+        Addi(S3, S3, 8) // 预留存放长度的地址
       ]
       for x in xs {
         let (x_pos, x_typ) = find(ctx, x)
@@ -357,8 +374,8 @@ fn closure_to_riscv(
       guard(x_typ == Int) else { @util.die("Asm error: MakeArray length must be Int.") }
       let asm: AsmList = [
         Comment("MakeArray \{expr}"),
-        Mv(S1, Sp), // 存起始地址
-        Addi(Sp, Sp, 8), // 预留存放长度的地址
+        Mv(S1, S3), // 存起始地址
+        Addi(S3, S3, 8), // 预留存放长度的地址
       ]
       
       match y_typ {
@@ -374,22 +391,24 @@ fn closure_to_riscv(
         _ => @util.die("Asm error: MakeArray not implemented.")
       }
       
+      label_counter.val += 1
+      let label_counter_backup = label_counter.val
       asm.appendx([
         Lw(S2, {base: Fp, offset: x_pos}), // 加载元素个数
         Mul(T1, T1, S2), // 计算总长度
         Addi(T1, T1, 8), // 加上长度字段的长度
         Sw(T1, {base: S1, offset: 0}),
         
-        Label("make_array_loop_\{label_counter.val}"),
+        Label("make_array_loop_\{label_counter_backup}"),
       ])
       
       asm.appendx(data_copy(y_pos, y_typ, internal = true))
       asm.appendx([
         Addi(S2, S2, -1),
-        Beq(S2, Zero, 8), // 如果长度为 0，跳出循环
-        J("make_array_loop_\{label_counter.val}"),
+        Beq(S2, Zero, "make_array_end_\{label_counter_backup}"), // 如果长度为 0，跳出循环
+        J("make_array_loop_\{label_counter_backup}"),
+        Label("make_array_end_\{label_counter_backup}"),
       ])
-      label_counter.val += 1
       
       asm + [Mv(A0, S1), Comment("MakeArray End \{expr}"),]
     }
@@ -434,47 +453,49 @@ fn closure_to_riscv(
         let (x_pos, x_typ) = find(ctx, x);
         let (y_pos, y_typ) = find(ctx, y);
         
+        label_counter.val += 1
+        let label_counter_backup = label_counter.val
+        
         let asm: AsmList = [
             Lw(T0, {base: Fp, offset: x_pos}),
             Lw(T1, {base: Fp, offset: y_pos}),
-            Beq(T0, T1, 8),
-            J("ifeq_else_\{label_counter.val}"),
+            Beq(T0, T1, "ifeq_then_\{label_counter_backup}"),
         ]
         let global_offset_backup = global_offset.val
-        asm.appendx(closure_to_riscv(env, ctx, then))
-        asm.appendx( [J("ifeq_end_\{label_counter.val}")] )
+        asm.appendx(closure_to_riscv(env, ctx, els))
+        asm.appendx( [J("ifeq_end_\{label_counter_backup}")] )
         
         global_offset.val = global_offset_backup
-        asm.appendx( [Label("ifeq_else_\{label_counter.val}")] )
-        asm.appendx(closure_to_riscv(env, ctx, els))
+        asm.appendx( [Label("ifeq_then_\{label_counter_backup}")] )
+        asm.appendx(closure_to_riscv(env, ctx, then))
         
-        asm.appendx( [Label("ifeq_end_\{label_counter.val}")] )
-        
-        label_counter.val += 1
+        asm.appendx( [Label("ifeq_end_\{label_counter_backup}")] )
         asm
     }
     
     IfLe(x, y, then, els) => {
         let (x_pos, x_typ) = find(ctx, x);
         let (y_pos, y_typ) = find(ctx, y);
-        guard(x_typ == Int && y_typ == Int) else { @util.die("Asm error: Ifeq args must be Int.") }
+        
+        label_counter.val += 1
+        let label_counter_backup = label_counter.val
+        
+        guard(x_typ == Int && y_typ == Int) else { @util.die("Asm error: Ifle args must be Int.") }
         let asm: AsmList = [
             Lw(T0, {base: Fp, offset: x_pos}),
             Lw(T1, {base: Fp, offset: y_pos}),
-            Ble(T0, T1, 8),
-            J("ifeq_else_\{label_counter.val}"),
+            Ble(T0, T1, "ifle_then_\{label_counter_backup}"),
         ]
         let global_offset_backup = global_offset.val
-        asm.appendx(closure_to_riscv(env, ctx, then))
-        asm.appendx( [J("ifeq_end_\{label_counter.val}")] )
+        asm.appendx(closure_to_riscv(env, ctx, els))
+        asm.appendx( [J("ifle_end_\{label_counter_backup}")] )
         
         global_offset.val = global_offset_backup
-        asm.appendx( [Label("ifeq_else_\{label_counter.val}")] )
-        asm.appendx(closure_to_riscv(env, ctx, els))
+        asm.appendx( [Label("ifle_then_\{label_counter_backup}")] )
+        asm.appendx(closure_to_riscv(env, ctx, then))
         
-        asm.appendx( [Label("ifeq_end_\{label_counter.val}")] )
+        asm.appendx( [Label("ifle_end_\{label_counter_backup}")] )
         
-        label_counter.val += 1
         asm
     }
     
@@ -487,7 +508,7 @@ fn closure_to_riscv(
             asm.appendx( [ Sw(A0, {base: Fp, offset: global_offset.val}) ])
           }
           Tuple(_) | Array(_) | Closure(_) => {
-            asm.appendx( [ Sw(Sp, {base: Fp, offset: global_offset.val} ) ])
+            asm.appendx( [ Sw(S3, {base: Fp, offset: global_offset.val} ) ])
             asm.appendx(data_copy_reg(A0, ty, internal = true))
           }
           _ => @util.die("Asm error: ArrayGet not implemented.")
@@ -611,11 +632,11 @@ fn closure_to_riscv(
       let fun = env.functions.get(name.to_string()).unwrap()
       let asm: AsmList = [
         Comment("MakeClosure \{name}"),
-        Mv(S1, Sp), // 存起始地址
-        Addi(Sp, Sp, 16), // 预留存放长度和指针的地址
+        Mv(S1, S3), // 存起始地址
+        Addi(S3, S3, 16), // 预留存放长度和指针的地址
         
         La(T0, name.to_string()),
-        Sw(T0, {base: Sp, offset: -8}), // 存函数指针
+        Sw(T0, {base: S3, offset: -8}), // 存函数指针
         Li(S2, "16"),
       ]
       for fv in fun.formal_free_vars {
