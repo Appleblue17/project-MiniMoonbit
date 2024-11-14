@@ -1,7 +1,15 @@
 fn main {
-  print_int(
-    int_of_float(
-      (sin(cos(sqrt(abs_float(-12.3)))) + 4.5 - 6.7 * 8.9 / 1.23456789) * float_of_int(1000000)
-    )
-  )
+  fn gen_arr(m: Int, n: Int) -> Array[Int] {
+    let mat = Array::make(m, 0);
+    fn init_arr(i: Int) -> Unit {
+      mat[i] = n;
+      ()
+    };
+    let _ = init_arr(0);
+    mat
+  };
+  
+  let c = gen_arr(2, 2);
+  let _ = print_int(c[0]);
+  ()
 };

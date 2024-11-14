@@ -119,7 +119,7 @@ ifeq_end_2:
 
 .global minimbt_main
 minimbt_main:
-  li t0, 0x100000
+  li t0, 0x1
   add a0, t0, t0
   call minimbt_malloc
   add s3, a0, t0

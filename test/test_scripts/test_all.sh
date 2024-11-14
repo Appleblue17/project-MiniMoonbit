@@ -1,6 +1,6 @@
 start_stage="parse"
 end_stage="riscv"
-file_name="cls-bug2"
+file_name="fib"
 in_path="./test/test_src/${file_name}.mbt"
 out_path="./test/test_after_asm/${file_name}.s"
 out_bin="./test/test_after_asm/${file_name}.bin"

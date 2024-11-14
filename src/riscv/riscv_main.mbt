@@ -206,7 +206,7 @@ pub fn emit(
   // ]
   
   let init: AsmList = [
-    Li(T0, "0x100000"), // 申请 2MB 内存
+    Li(T0, "0x1000"), // 申请 2MB 内存
     Add(A0, T0, T0),
     Call("minimbt_malloc"),
     Add(S3, A0, T0), // 申请的内存地址（中间）
