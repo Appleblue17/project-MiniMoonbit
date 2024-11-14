@@ -1,6 +1,6 @@
 start_stage="riscv"
 end_stage="riscv"
-file_name="even-odd"
+file_name="adder2"
 in_path="./test/test_after_closure/${file_name}.json"
 out_path="./test/test_after_asm/${file_name}.s"
 out_bin="./test/test_after_asm/${file_name}.bin"

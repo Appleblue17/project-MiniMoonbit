@@ -6,6 +6,7 @@ typealias Name = @types.Name
 pub struct AssemblyFunction {
   name : String
   export : Bool
+  is_text: Bool
   body : AsmList
 }
 
@@ -26,7 +27,13 @@ pub fn AssemblyFunction::output(
 
 pub fn print_functions(asm : Array[AssemblyFunction]) -> String {
   let logger = Buffer::new()
+  logger.write_string(".data\n")
+  let mut flag = true
   for f in asm {
+    if f.is_text && flag {
+      logger.write_string(".text\n")
+      flag = false
+    }
     f.output(logger)
     logger.write_string("\n")
   }

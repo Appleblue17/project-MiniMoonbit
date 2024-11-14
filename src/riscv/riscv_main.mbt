@@ -131,7 +131,7 @@ fn data_copy_reg(reg: Reg, ty: LowType, ~internal: Bool) -> AsmList {
         ]
       }
     }
-    Tuple(_) | Array(_) | Closure(_)=> {
+    Tuple(_) | Array(_) | Closure(_) | ClosureFn(_) => {
       label_counter.val += 1
       [
         Lw(T1, {base: reg, offset: 0}), // 加载数据长度
@@ -268,19 +268,19 @@ pub fn emit(
     }
     
     function_asms.push(
-      {name: f.name._, export: false, body: asm + closure_to_riscv(env, ctx, f.body) + [Lw(Ra, {base: Fp, offset: 0}), Jr(Ra)] })
+      {name: f.name._, export: false, is_text: true, body: asm + closure_to_riscv(env, ctx, f.body) + [Lw(Ra, {base: Fp, offset: 0}), Jr(Ra)] })
   }
   
   global_offset.val = 0
   let body_asm = closure_to_riscv(env, LocalEnv::new(), input.body)
   function_asms.push(
-    {name: "minimbt_main", export: true, body: init+body_asm })
+    {name: "minimbt_main", export: true, is_text: true, body: init+body_asm })
   
   let const_double_asm = []
   for i in 0..<const_double.length() {
     let x = const_double[i]
     const_double_asm.push(
-      { name: "const_double_\{i}", export: false, body: [Text(".double \{x}")] }
+      { name: "const_double_\{i}", export: false, is_text: false, body: [Text(".double \{x}")] }
     )
   }
   
@@ -310,7 +310,7 @@ fn closure_to_riscv(
         match typ {
           Unit | Bool | Int => [ Lw(A0, {base: Fp, offset: pos}) ]
           Double => [ Fld(Fa0, {base: Fp, offset: pos}) ]
-          Tuple(_) | Array(_) | Closure(_) => [ Lw(A0, {base: Fp, offset: pos}) ]
+          Tuple(_) | Array(_) | Closure(_) | ClosureFn(_) => [ Lw(A0, {base: Fp, offset: pos}) ]
           _ => @util.die("Asm error: Var not implemented.")
         }
     }
@@ -353,7 +353,7 @@ fn closure_to_riscv(
           Unit | Bool | Int | Double => {
             asm.appendx([Addi(S2, S2, 8)])
           }
-          Tuple(_) | Array(_) | Closure(_) => {
+          Tuple(_) | Array(_) | Closure(_) | ClosureFn(_) => {
             asm.appendx([
               Lw(T0, {base: Fp, offset: x_pos}),
               Lw(T1, {base: T0, offset: 0}),
@@ -382,7 +382,7 @@ fn closure_to_riscv(
         Unit | Bool | Int | Double => {
           asm.appendx( [Li(T1, "8")] )
         }
-        Tuple(_) | Array(_) | Closure(_)=> {
+        Tuple(_) | Array(_) | Closure(_) | ClosureFn(_) => {
           asm.appendx([
             Lw(T0, {base: Fp, offset: y_pos}),
             Lw(T1, {base: T0, offset: 0}),
@@ -442,9 +442,9 @@ fn closure_to_riscv(
       ]
       let op_asm = match expr {
         FAdd(_, _) => [ FaddD(Fa0, Ft0, Ft1) ]
-        FSub(_, _) => [ FaddD(Fa0, Ft0, Ft1) ]
-        FMul(_, _) => [ FaddD(Fa0, Ft0, Ft1) ]
-        FDiv(_, _) => [ FaddD(Fa0, Ft0, Ft1) ]
+        FSub(_, _) => [ FsubD(Fa0, Ft0, Ft1) ]
+        FMul(_, _) => [ FmulD(Fa0, Ft0, Ft1) ]
+        FDiv(_, _) => [ FdivD(Fa0, Ft0, Ft1) ]
       }
       load_asm + op_asm
     }
@@ -504,18 +504,29 @@ fn closure_to_riscv(
       
       if x.name != None {
         match ty {
-          Unit | Bool | Int | Double => {
+          Unit | Bool | Int => {
             asm.appendx( [ Sw(A0, {base: Fp, offset: global_offset.val}) ])
           }
-          Tuple(_) | Array(_) | Closure(_) => {
+          Double => {
+            asm.appendx( [ Fsd(Fa0, {base: Fp, offset: global_offset.val}) ])
+          }
+          Tuple(_) | Array(_) | Closure(_) | ClosureFn(_)=> {
             asm.appendx( [ Sw(S3, {base: Fp, offset: global_offset.val} ) ])
             asm.appendx(data_copy_reg(A0, ty, internal = true))
           }
-          _ => @util.die("Asm error: ArrayGet not implemented.")
+          _ => @util.die("Asm error: Let not implemented 1.")
         }
       }
       else {
-        asm.appendx( [ Sw(A0, {base: Fp, offset: global_offset.val}) ])
+        match ty {
+          Unit | Bool | Int | Tuple(_) | Array(_) | Closure(_) | ClosureFn(_) => {
+            asm.appendx( [ Sw(A0, {base: Fp, offset: global_offset.val}) ])
+          }
+          Double => {
+            asm.appendx( [ Fsd(Fa0, {base: Fp, offset: global_offset.val}) ])
+          }
+          _ => @util.die("Asm error: Let not implemented 2.")
+        }
       }
       
       let new_ctx = ctx.add(x, (global_offset.val, ty))
@@ -561,13 +572,13 @@ fn closure_to_riscv(
         Unit | Bool | Int | Double => {
           asm.appendx( [Li(T2, "8")] )
         }
-        Tuple(_) | Array(_) | Closure(_)=> {
+        Tuple(_) | Array(_) | Closure(_) | ClosureFn(_) => {
           asm.appendx([
             Lw(T3, {base: Fp, offset: x_pos}),
             Lw(T2, {base: T3, offset: 8}),
           ])
         }
-        _ => @util.die("Asm error: MakeArray not implemented.")
+        _ => @util.die("Asm error: ArrayGet not implemented.")
       }
       
       asm.appendx([
@@ -579,7 +590,7 @@ fn closure_to_riscv(
       match x_typ_unwrap {
         Unit | Bool | Int => asm.appendx( [ Lw(A0, {base: S1, offset: 0}) ] )
         Double => asm.appendx( [ Fld(Fa0, {base: S1, offset: 0}) ] )
-        Tuple(_) | Array(_) | Closure(_) => { asm.appendx( [ Mv(A0, S1) ] ) }
+        Tuple(_) | Array(_) | Closure(_) | ClosureFn(_) => { asm.appendx( [ Mv(A0, S1) ] ) }
         _ => @util.die("Asm error: ArrayGet not implemented.")
       }
       
@@ -601,7 +612,7 @@ fn closure_to_riscv(
       
       let x_typ_unwrap = match x_typ {
         Array(typ) => typ
-        _ => @util.die("Asm error: ArrayGet not implemented.")
+        _ => @util.die("Asm error: ArrayPut not implemented.")
       }
       
       match x_typ_unwrap {
@@ -681,7 +692,7 @@ fn closure_to_riscv(
         let (pos, typ) = find(ctx, arg)
         match typ {
           Unit | Bool | Int | Double => ()
-          Tuple(_) | Array(_) | Closure(_) => {
+          Tuple(_) | Array(_) | Closure(_) | ClosureFn(_) => {
             asm.appendx([
               Lw(T0, {base: Fp, offset: pos}),
               Sw(T0, {base: Fp, offset: global_offset.val}),

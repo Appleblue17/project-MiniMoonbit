@@ -1,12 +1,7 @@
-fn f(x: Int) -> Int {
-  x * x
-};
-fn g(tup: (Int, Int)) -> Int {
-  let (x, y) = tup;
-  f(x) + f(y)
-};
-
 fn main {
-  let tup = (3, 4);
-  print_int(g(tup))
+  print_int(
+    int_of_float(
+      (sin(cos(sqrt(abs_float(-12.3)))) + 4.5 - 6.7 * 8.9 / 1.23456789) * float_of_int(1000000)
+    )
+  )
 };

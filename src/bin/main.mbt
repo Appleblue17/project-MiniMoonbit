@@ -148,19 +148,19 @@ fn CompileStatus::output(self : CompileStatus, json : Bool) -> String {
       Typecheck => self.ast.unwrap().to_string()
       Knf => self.typechecked.unwrap().to_string()
       KnfOpt => {
-        // println(self.knf.unwrap().to_pretty_print())
-        // ""
-        self.knf.unwrap().to_string()
+        println(self.knf.unwrap().to_pretty_print())
+        ""
+        // self.knf.unwrap().to_string()
       }
       Closure => {
-        // println(self.opt_knf.unwrap().to_pretty_print())
-        // ""
-        self.opt_knf.unwrap().to_string()
+        println(self.opt_knf.unwrap().to_pretty_print())
+        ""
+        // self.opt_knf.unwrap().to_string()
       }
       Asm => {
-        // println(self.closure_ir.unwrap().to_pretty_print())
-        // ""
-        self.closure_ir.unwrap().to_string()
+        println(self.closure_ir.unwrap().to_pretty_print())
+        ""
+        // self.closure_ir.unwrap().to_string()
       }
       Finished => @riscv.print_functions(self.asm.unwrap())
     }

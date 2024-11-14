@@ -78,13 +78,12 @@ fn ast_to_knf(ctx : LocalEnv, syntax : Syntax) -> (Knf, Type) {
       // Neg(expr_name)
       
       let expr_name = env.val.new_name()
-      (Let((expr_name, Int), ast_to_knf(ctx, expr).0, 
-        match kind {
-          Some(Int) => Neg(expr_name)
-          Some(Double) => FNeg(expr_name)
-          _ => @util.die("KNF error: Neg must have a kind, there is a problem with typing.")
-        }
-      ), Int)
+      
+      match kind {
+        Some(Int) => ( Let((expr_name, Int), ast_to_knf(ctx, expr).0, Neg(expr_name)) , Int)
+        Some(Double) => ( Let((expr_name, Double), ast_to_knf(ctx, expr).0, FNeg(expr_name)) , Double)
+        _ => @util.die("KNF error: Neg must have a kind, there is a problem with typing.")
+      }
     }
     App(func, args) => {
       // let func_name = <func> in
